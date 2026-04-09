@@ -118,7 +118,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:14
 
 /* QUICK LOG */
 .qa-grid{display:grid;grid-template-columns:1fr 1fr;gap:5px;}
-.qa-btn{padding:8px 6px;border:1px solid var(--border);border-radius:var(--r);background:var(--surface2);color:var(--text2);font-size:12px;font-weight:500;cursor:pointer;text-align:center;transition:all 0.1s;font-family:var(--font);}
+.qa-btn{padding:8px 6px;border:2px solid transparent;border-radius:var(--r);background:var(--surface2);color:var(--text2);font-size:12px;font-weight:500;cursor:pointer;text-align:center;transition:all 0.1s;font-family:var(--font);}
 .qa-btn:hover{border-color:var(--border2);background:var(--gray-bg);color:var(--text);}
 .qa-checkin{grid-column:1/-1;padding:10px 6px;border-color:var(--green-bd);background:var(--green-bg);color:var(--green-t);font-size:13px;font-weight:700;}
 .qa-checkin:hover{border-color:#4aaa70;background:#d8f0e2;color:var(--green);}
@@ -126,6 +126,21 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:14
 .qa-ncns:hover{border-color:var(--amber-bd);background:var(--amber-bg);}
 .qa-sched{border-color:var(--blue-bd);background:var(--blue-bg);color:var(--blue-t);}
 .qa-sched:hover{border-color:#6090d8;background:#ddeafd;}
+.qa-checkin.qa-active{border-color:var(--green);background:#d0edda;color:var(--green-t);box-shadow:0 0 0 3px rgba(30,122,66,0.12);}
+.qa-ncns.qa-active{border-color:var(--amber);background:var(--amber-bg);color:var(--amber-t);box-shadow:0 0 0 3px rgba(196,122,12,0.15);}
+.qa-sched.qa-active{border-color:var(--blue);background:var(--blue-bg);color:var(--blue-t);box-shadow:0 0 0 3px rgba(30,101,200,0.12);}
+.ql-banner{padding:10px 12px;border-radius:var(--r);display:flex;align-items:center;justify-content:space-between;gap:8px;}
+.ql-banner.bl-green{background:#d0edda;border:1.5px solid var(--green-bd);}
+.ql-banner.bl-amber{background:var(--amber-bg);border:1.5px solid var(--amber-bd);}
+.ql-banner.bl-blue{background:var(--blue-bg);border:1.5px solid var(--blue-bd);}
+.ql-banner.bl-red{background:var(--red-bg);border:1.5px solid var(--red-bd);}
+.ql-label{font-size:11px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;}
+.ql-banner.bl-green .ql-label{color:var(--green-t);}
+.ql-banner.bl-amber .ql-label{color:var(--amber-t);}
+.ql-banner.bl-blue .ql-label{color:var(--blue-t);}
+.ql-banner.bl-red .ql-label{color:var(--red-t);}
+.ql-clear{background:none;border:none;font-size:11px;cursor:pointer;opacity:0.5;padding:2px 6px;font-family:var(--font);}
+.ql-clear:hover{opacity:1;}
 
 /* FORM */
 .ctr{display:flex;gap:5px;}
@@ -336,11 +351,18 @@ textarea.fi{resize:none;height:58px;}
     <div>
       <div class="fl">QUICK LOG</div>
       <div class="qa-grid">
-        <button class="qa-btn qa-checkin" onclick="quickLog('checkin')">Guard Check-In / Post Check</button>
-        <button class="qa-btn qa-ncns" onclick="quickLog('ncns')">No Call / No Show</button>
-        <button class="qa-btn qa-ncns" onclick="quickLog('late')">Late to Post</button>
-        <button class="qa-btn qa-sched" onclick="quickLog('abandoned')">Post Abandoned</button>
-        <button class="qa-btn qa-sched" onclick="quickLog('scheduling')">Scheduling Issue</button>
+        <button class="qa-btn qa-checkin" id="qa-checkin" onclick="quickLog('checkin')">Guard Check-In / Post Check</button>
+        <button class="qa-btn qa-ncns" id="qa-ncns" onclick="quickLog('ncns')">No Call / No Show</button>
+        <button class="qa-btn qa-ncns" id="qa-late" onclick="quickLog('late')">Late to Post</button>
+        <button class="qa-btn qa-sched" id="qa-abandoned" onclick="quickLog('abandoned')">Post Abandoned</button>
+        <button class="qa-btn qa-sched" id="qa-scheduling" onclick="quickLog('scheduling')">Scheduling Issue</button>
+      </div>
+    </div>
+
+    <div id="ql-banner-wrap" style="display:none;">
+      <div class="ql-banner" id="ql-banner">
+        <span class="ql-label" id="ql-banner-text"></span>
+        <button class="ql-clear" onclick="clearQuickLog()">&#10005; Clear</button>
       </div>
     </div>
 
@@ -722,8 +744,32 @@ function rTrackRow(){
   document.getElementById('track-label').textContent=fm.trackInc?'Tracking as Active Incident':'Track as Active Incident';
 }
 
+const QL_META={
+  checkin:{label:'Guard Check-In / Post Check',btnId:'qa-checkin',color:'bl-green'},
+  ncns:{label:'No Call / No Show',btnId:'qa-ncns',color:'bl-amber'},
+  late:{label:'Late to Post',btnId:'qa-late',color:'bl-amber'},
+  abandoned:{label:'Post Abandoned',btnId:'qa-abandoned',color:'bl-red'},
+  scheduling:{label:'Scheduling Issue',btnId:'qa-scheduling',color:'bl-blue'}
+};
+let activeQuickLog=null;
+
 function quickLog(key){
   const q=QUICK[key];
+  const meta=QL_META[key];
+  // Clear previous active button
+  if(activeQuickLog) clearQuickLogBtn();
+  activeQuickLog=key;
+  // Highlight selected button
+  const btn=document.getElementById(meta.btnId);
+  if(btn) btn.classList.add('qa-active');
+  // Show banner
+  const wrap=document.getElementById('ql-banner-wrap');
+  const banner=document.getElementById('ql-banner');
+  const bannerText=document.getElementById('ql-banner-text');
+  banner.className='ql-banner '+meta.color;
+  bannerText.textContent='Logging: '+meta.label;
+  wrap.style.display='block';
+  // Set form state
   setCT(q.ct);
   fm.category=q.cat;fm.priority=q.pri;
   fm.guardName='';fm.unitId='';fm.location='';fm.notes='';
@@ -739,6 +785,26 @@ function quickLog(key){
   setTrack(q.trackInc);
   rCats();rPris();rTrackRow();
   setTimeout(()=>{const gn=document.getElementById('gname');if(gn)gn.focus();},50);
+}
+
+function clearQuickLogBtn(){
+  if(!activeQuickLog) return;
+  const meta=QL_META[activeQuickLog];
+  if(meta){const btn=document.getElementById(meta.btnId);if(btn)btn.classList.remove('qa-active');}
+}
+
+function clearQuickLog(){
+  clearQuickLogBtn();
+  activeQuickLog=null;
+  document.getElementById('ql-banner-wrap').style.display='none';
+  fm={callerType:null,category:null,priority:'medium',guardName:'',unitId:'',location:'',notes:'',trackInc:false};
+  ['gname','gunit','gloc','cname','cloc2','notes'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  document.getElementById('notes').placeholder='Brief description of the call...';
+  document.getElementById('track-toggle').classList.remove('on');
+  ['public','guard','client'].forEach(x=>document.getElementById('bt-'+x).className='cbtn');
+  document.getElementById('gf').style.display='none';
+  document.getElementById('clf').style.display='none';
+  rCats();rPris();rTrackRow();
 }
 
 async function submitEntry(){
@@ -786,6 +852,9 @@ async function submitEntry(){
     ['gname','gunit','gloc','cname','cloc2','notes'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
     document.getElementById('notes').placeholder='Brief description of the call...';
     document.getElementById('track-toggle').classList.remove('on');
+    clearQuickLogBtn();
+    activeQuickLog=null;
+    document.getElementById('ql-banner-wrap').style.display='none';
     rAll();
   }catch(e){
     showN('Failed to save entry: '+e.message,'err');
@@ -885,17 +954,29 @@ function renderDpManageList(){
 
 async function testWebhook(){
   const url=document.getElementById('s-webhook').value.trim();
+  const emails=document.getElementById('s-emails').value.trim();
   const res=document.getElementById('tresult');
-  if(!url){res.textContent='Enter a URL first.';res.className='tresult err';return;}
+  if(!url){res.textContent='Enter a webhook URL first.';res.className='tresult err';return;}
   res.textContent='Sending...';res.className='tresult';
   try{
-    await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({alertType:'TEST',level:'info',priority:'low',callerType:'system',
-        guardName:'',unitId:'',location:'FPI Dispatch',category:'System Test',
-        notes:'Test from FPI Dispatch Dashboard. Webhook is working.',
-        timestamp:new Date().toLocaleString('en-US'),entryId:0,
-        dispatcher:'System',recipients:document.getElementById('s-emails').value.trim()})});
-    res.textContent='Test sent — check your email.';res.className='tresult ok';
+    const payload={
+      alertType:'TEST',level:'info',priority:'low',callerType:'system',
+      guardName:'',unitId:'',location:'FPI Dispatch',category:'System Test',
+      notes:'Test from FPI Dispatch Dashboard. Webhook is working.',
+      timestamp:new Date().toLocaleString('en-US'),entryId:0,
+      dispatcher:'System',recipients:emails,
+      webhookUrl:url
+    };
+    // In live mode go server-side (avoids CORS), offline mode goes direct
+    if(!offlineMode){
+      const r=await fetch('/api/webhook-test',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+      const d=await r.json();
+      if(d.ok){res.textContent='Test sent — check your email.';res.className='tresult ok';}
+      else{res.textContent='Failed: '+(d.error||'unknown error');res.className='tresult err';}
+    } else {
+      await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+      res.textContent='Test sent — check your email.';res.className='tresult ok';
+    }
   }catch(e){res.textContent='Failed: '+e.message;res.className='tresult err';}
 }
 
