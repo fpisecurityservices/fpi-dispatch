@@ -1,7 +1,14 @@
 const { sql } = require('@vercel/postgres');
 
 async function fireWebhook(alertType, level, entry, recipients) {
-  const url = process.env.N8N_WEBHOOK_URL;
+  let url = process.env.N8N_WEBHOOK_URL;
+  // Fall back to DB-stored webhook URL if env var not set
+  if (!url) {
+    try {
+      const { rows } = await sql`SELECT value FROM app_settings WHERE key = 'webhook_url'`;
+      url = rows[0]?.value;
+    } catch(e) {}
+  }
   if (!url) return;
   const to = recipients || process.env.ALERT_RECIPIENTS || '';
   try {
