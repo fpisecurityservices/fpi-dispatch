@@ -1,0 +1,944 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FPI Dispatch — Operations</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --bg:#f0f2f5;--surface:#fff;--surface2:#f7f8fa;
+  --border:#e2e5ea;--border2:#c8cdd6;
+  --text:#1a2335;--text2:#5a6a80;--text3:#a0adb8;
+  --navy:#1a5ab8;--navy-h:#144d9e;--navy-light:#e8f0fb;--navy-bd:#b8cef0;
+  --amber:#c47a0c;--amber-bg:#fef3e0;--amber-bd:#f0c060;--amber-t:#92560a;
+  --red:#c03030;--red-bg:#fef0f0;--red-bd:#f0a0a0;--red-t:#8a1f1f;
+  --green:#1e7a42;--green-bg:#eef8f2;--green-bd:#7ecaa0;--green-t:#155530;
+  --blue:#1e65c8;--blue-bg:#eef4fd;--blue-bd:#90b8f0;--blue-t:#123e80;
+  --gray-bg:#f3f4f6;--gray-bd:#d0d5dc;
+  --r:6px;--r2:10px;--font:'Segoe UI',system-ui,sans-serif;--mono:'Consolas','SF Mono',monospace;
+  --shadow:0 1px 3px rgba(0,0,0,0.08),0 1px 2px rgba(0,0,0,0.05);
+}
+body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:14px;line-height:1.5;min-height:100vh;}
+
+/* OVERLAYS */
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:1000;display:flex;align-items:center;justify-content:center;}
+.overlay.hidden{display:none;}
+.modal{background:var(--surface);border:0.5px solid var(--border);border-radius:var(--r2);padding:26px;width:480px;max-width:95vw;max-height:90vh;overflow-y:auto;box-shadow:0 8px 30px rgba(0,0,0,0.15);}
+.modal h2{font-size:13px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:var(--text2);margin-bottom:18px;}
+
+/* DISPATCHER MODAL */
+.dispatcher-grid{display:flex;flex-direction:column;gap:6px;margin-bottom:16px;}
+.dp-btn{padding:11px 14px;border:1px solid var(--border);border-radius:var(--r);background:var(--surface2);color:var(--text);font-size:14px;font-weight:500;cursor:pointer;text-align:left;display:flex;align-items:center;justify-content:space-between;font-family:var(--font);}
+.dp-btn:hover{border-color:var(--navy-bd);background:var(--navy-light);color:var(--navy);}
+.dp-badge{font-size:10px;font-weight:700;color:var(--green-t);background:var(--green-bg);border:1px solid var(--green-bd);padding:2px 8px;border-radius:20px;}
+.dp-add-row{display:flex;gap:6px;margin-top:8px;}
+.dp-add-row input{flex:1;padding:9px 10px;border:1px solid var(--border);border-radius:var(--r);font-size:13px;font-family:var(--font);color:var(--text);}
+.dp-add-row input:focus{outline:none;border-color:var(--navy);}
+.dp-add-btn{padding:9px 14px;background:var(--navy);border:none;border-radius:var(--r);color:white;font-size:12px;font-weight:700;cursor:pointer;font-family:var(--font);white-space:nowrap;}
+.dp-add-btn:hover{background:var(--navy-h);}
+.modal-divider{border:none;border-top:1px solid var(--border);margin:16px 0;}
+
+/* SETTINGS MODAL */
+.ssect{margin-bottom:18px;}
+.ssect h3{font-size:10px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:var(--text3);margin-bottom:10px;padding-bottom:6px;border-bottom:0.5px solid var(--border);}
+.sfield{margin-bottom:10px;}
+.sfield label{display:block;font-size:11px;color:var(--text2);margin-bottom:4px;font-weight:600;}
+.sfield input{width:100%;padding:8px 10px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--r);color:var(--text);font-family:var(--mono);font-size:12px;}
+.sfield input:focus{outline:none;border-color:var(--navy);}
+.strow{display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:0.5px solid var(--border);}
+.strow:last-child{border-bottom:none;}
+.stlabel{font-size:13px;color:var(--text);}
+.stdesc{font-size:11px;color:var(--text3);margin-top:1px;}
+.toggle{width:36px;height:20px;border-radius:10px;background:var(--gray-bd);border:none;cursor:pointer;position:relative;transition:background 0.2s;flex-shrink:0;}
+.toggle.on{background:var(--navy);}
+.toggle::after{content:'';position:absolute;top:3px;left:3px;width:14px;height:14px;border-radius:50%;background:white;transition:left 0.2s;box-shadow:0 1px 3px rgba(0,0,0,0.2);}
+.toggle.on::after{left:19px;}
+.sbtns{display:flex;gap:8px;margin-top:18px;}
+.s-save{flex:1;padding:9px;background:var(--navy);border:none;border-radius:var(--r);color:white;font-size:13px;font-weight:600;cursor:pointer;}
+.s-save:hover{background:var(--navy-h);}
+.s-cancel{padding:9px 14px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--r);color:var(--text2);font-size:13px;cursor:pointer;}
+.s-test{padding:8px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--r);color:var(--text2);font-size:12px;cursor:pointer;}
+.s-test:hover{background:var(--gray-bg);}
+.tresult{font-size:11px;padding:4px 0;color:var(--text3);}
+.tresult.ok{color:var(--green);}
+.tresult.err{color:var(--red);}
+.dp-manage{display:flex;flex-direction:column;gap:5px;margin-top:6px;}
+.dp-manage-row{display:flex;align-items:center;justify-content:space-between;padding:7px 10px;border:1px solid var(--border);border-radius:var(--r);background:var(--surface2);}
+.dp-del{padding:3px 8px;border:1px solid var(--red-bd);border-radius:var(--r);background:var(--red-bg);color:var(--red-t);font-size:11px;font-weight:600;cursor:pointer;font-family:var(--font);}
+
+/* NOTIFICATIONS */
+#notif-bar{position:fixed;top:0;left:0;right:0;z-index:900;pointer-events:none;}
+.ni{padding:10px 18px;font-size:12px;font-weight:500;display:flex;align-items:center;justify-content:space-between;gap:10px;pointer-events:all;animation:niIn 0.2s ease;}
+@keyframes niIn{from{transform:translateY(-100%);opacity:0}to{transform:translateY(0);opacity:1}}
+.ni-critical{background:#fde8e8;color:var(--red-t);border-bottom:1px solid var(--red-bd);}
+.ni-high,.ni-followup,.ni-ncns{background:var(--amber-bg);color:var(--amber-t);border-bottom:1px solid var(--amber-bd);}
+.ni-client{background:var(--blue-bg);color:var(--blue-t);border-bottom:1px solid var(--blue-bd);}
+.ni-info{background:var(--surface2);color:var(--text2);border-bottom:1px solid var(--border);}
+.ni-ok{background:var(--green-bg);color:var(--green-t);border-bottom:1px solid var(--green-bd);}
+.ni-err{background:var(--red-bg);color:var(--red-t);border-bottom:1px solid var(--red-bd);}
+.ni-dismiss{cursor:pointer;opacity:0.4;font-size:12px;background:none;border:none;color:inherit;padding:2px 6px;}
+.ni-dismiss:hover{opacity:1;}
+
+/* HEADER */
+#app-header{position:sticky;top:0;z-index:800;display:flex;align-items:center;justify-content:space-between;padding:0 16px;height:50px;background:var(--navy);color:white;}
+.hd-brand-name{font-size:13px;font-weight:700;letter-spacing:0.08em;color:white;}
+.hd-brand-sub{font-size:10px;color:rgba(255,255,255,0.5);letter-spacing:0.06em;}
+.hd-clock{font-family:var(--mono);font-size:19px;color:white;letter-spacing:0.04em;}
+.hd-right{display:flex;align-items:center;gap:8px;}
+#stats-bar{display:flex;gap:5px;}
+.schip{padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;}
+.schip-e{background:rgba(255,255,255,0.15);color:rgba(255,255,255,0.9);}
+.schip-a{background:rgba(255,180,50,0.25);color:#ffd580;}
+.schip-f{background:rgba(255,100,100,0.25);color:#ffaaaa;}
+.hd-btn{padding:5px 12px;background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.2);border-radius:var(--r);color:rgba(255,255,255,0.85);font-size:12px;cursor:pointer;font-family:var(--font);}
+.hd-btn:hover{background:rgba(255,255,255,0.2);}
+.hd-btn.warn{border-color:rgba(255,200,80,0.6);color:#ffd580;}
+.hd-dispatcher{font-size:12px;color:rgba(255,255,255,0.7);display:flex;align-items:center;gap:5px;}
+.hd-dispatcher strong{color:white;}
+.hd-dispatcher button{background:none;border:none;color:rgba(255,255,255,0.5);font-size:11px;cursor:pointer;text-decoration:underline;padding:0;}
+.hd-dispatcher button:hover{color:white;}
+.wdot{width:7px;height:7px;border-radius:50%;display:inline-block;margin-right:4px;}
+.wdot.ok{background:#6ee09a;}
+.wdot.warn{background:#ffd580;}
+.wdot.none{background:rgba(255,255,255,0.3);}
+
+/* LAYOUT */
+#app-body{display:grid;grid-template-columns:360px 1fr;height:calc(100vh - 50px);}
+#entry-col{background:var(--surface);border-right:1px solid var(--border);overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:13px;}
+#right-col{display:flex;flex-direction:column;overflow:hidden;background:var(--bg);}
+#incidents-panel{flex:0 0 auto;background:var(--surface);border-bottom:1px solid var(--border);padding:14px 16px;overflow-y:auto;max-height:50%;}
+#log-panel{flex:1;overflow-y:auto;padding:14px 16px;}
+.ptitle{font-size:10px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:var(--text3);margin-bottom:11px;display:flex;align-items:center;justify-content:space-between;}
+.ptitle-r{font-size:11px;font-weight:500;letter-spacing:0;text-transform:none;color:var(--text3);}
+.fl{font-size:10px;font-weight:700;letter-spacing:0.08em;color:var(--text3);margin-bottom:5px;}
+
+/* QUICK LOG */
+.qa-grid{display:grid;grid-template-columns:1fr 1fr;gap:5px;}
+.qa-btn{padding:8px 6px;border:1px solid var(--border);border-radius:var(--r);background:var(--surface2);color:var(--text2);font-size:12px;font-weight:500;cursor:pointer;text-align:center;transition:all 0.1s;font-family:var(--font);}
+.qa-btn:hover{border-color:var(--border2);background:var(--gray-bg);color:var(--text);}
+.qa-checkin{grid-column:1/-1;padding:10px 6px;border-color:var(--green-bd);background:var(--green-bg);color:var(--green-t);font-size:13px;font-weight:700;}
+.qa-checkin:hover{border-color:#4aaa70;background:#d8f0e2;color:var(--green);}
+.qa-ncns{border-color:#f0c08080;background:#fff8f0;color:#7a3a10;}
+.qa-ncns:hover{border-color:var(--amber-bd);background:var(--amber-bg);}
+.qa-sched{border-color:var(--blue-bd);background:var(--blue-bg);color:var(--blue-t);}
+.qa-sched:hover{border-color:#6090d8;background:#ddeafd;}
+
+/* FORM */
+.ctr{display:flex;gap:5px;}
+.cbtn{flex:1;padding:9px 6px;border:1px solid var(--border);border-radius:var(--r);background:var(--surface2);color:var(--text2);font-size:13px;font-weight:500;cursor:pointer;transition:all 0.12s;font-family:var(--font);}
+.cbtn:hover{background:var(--gray-bg);}
+.cbtn.ap{background:#f3f4f6;border-color:var(--gray-bd);color:#3a4455;}
+.cbtn.ag{background:var(--amber-bg);border-color:var(--amber-bd);color:var(--amber-t);}
+.cbtn.ac{background:var(--blue-bg);border-color:var(--blue-bd);color:var(--blue-t);}
+.gf{background:var(--amber-bg);border:1px solid var(--amber-bd);border-radius:var(--r);padding:10px;display:flex;flex-direction:column;gap:8px;}
+.cf{background:var(--blue-bg);border:1px solid var(--blue-bd);border-radius:var(--r);padding:10px;display:flex;flex-direction:column;gap:8px;}
+.fi{width:100%;padding:7px 10px;background:white;border:1px solid var(--border);border-radius:var(--r);color:var(--text);font-size:13px;font-family:var(--font);}
+.fi:focus{outline:none;border-color:var(--navy);}
+.fi::placeholder{color:var(--text3);}
+textarea.fi{resize:none;height:58px;}
+.grp{display:flex;gap:6px;}
+.grp>div{flex:1;}
+.track-row{display:flex;align-items:center;justify-content:space-between;padding:8px 10px;border-radius:var(--r);border:1px solid var(--border);}
+.track-row.active-inc{background:var(--red-bg);border-color:var(--red-bd);}
+.track-label{font-size:12px;color:var(--text2);font-weight:500;}
+.track-row.active-inc .track-label{color:var(--red-t);}
+.cgrid{display:grid;grid-template-columns:1fr 1fr;gap:4px;}
+.catb{padding:7px 6px;border:1px solid var(--border);border-radius:var(--r);background:var(--surface2);color:var(--text2);font-size:12px;cursor:pointer;text-align:center;font-family:var(--font);}
+.catb:hover{border-color:var(--border2);color:var(--text);}
+.catb.sel{background:var(--navy-light);border-color:var(--navy-bd);color:var(--navy);font-weight:600;}
+.prow{display:flex;gap:4px;}
+.pbtn{flex:1;padding:7px 4px;border:1px solid var(--border);border-radius:var(--r);font-size:11px;font-weight:600;cursor:pointer;text-align:center;background:var(--surface2);color:var(--text3);font-family:var(--font);}
+.pbtn.pl{background:var(--green-bg);border-color:var(--green-bd);color:var(--green-t);}
+.pbtn.pm{background:#f0f2f5;border-color:var(--gray-bd);color:var(--text2);}
+.pbtn.ph{background:var(--amber-bg);border-color:var(--amber-bd);color:var(--amber-t);}
+.pbtn.pc{background:var(--red-bg);border-color:var(--red-bd);color:var(--red-t);}
+.log-btn{width:100%;padding:11px;border:none;border-radius:var(--r);background:var(--navy);color:white;font-size:13px;font-weight:700;cursor:pointer;letter-spacing:0.04em;font-family:var(--font);}
+.log-btn:hover{background:var(--navy-h);}
+.log-btn:active{transform:scale(0.99);}
+.log-btn:disabled{opacity:0.6;cursor:not-allowed;}
+
+/* INCIDENTS */
+.icard{border:1px solid var(--border);border-radius:var(--r);padding:11px 13px;margin-bottom:8px;background:var(--surface);box-shadow:var(--shadow);}
+.icard:last-child{margin-bottom:0;}
+.icard.sn{border-left:3px solid var(--amber);}
+.icard.sr{border-left:3px solid var(--blue);}
+.icard.sf{border-left:3px solid var(--red);}
+.itop{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:5px;}
+.igname{font-size:14px;font-weight:600;color:var(--text);}
+.imeta{font-size:11px;color:var(--text3);margin-top:1px;}
+.elapsed{font-family:var(--mono);font-size:11px;color:var(--text3);margin-top:3px;}
+.elapsed.od{color:var(--red);font-weight:700;}
+.inotes{font-size:12px;color:var(--text2);margin:5px 0;}
+.iacts{display:flex;gap:5px;margin-top:9px;flex-wrap:wrap;}
+.abtn{padding:5px 11px;border-radius:var(--r);font-size:11px;font-weight:600;cursor:pointer;border:1px solid var(--border);background:var(--surface2);color:var(--text2);font-family:var(--font);}
+.abtn:hover{background:var(--gray-bg);}
+.abtn.ar{border-color:var(--blue-bd);color:var(--blue-t);background:var(--blue-bg);}
+.abtn.af{border-color:var(--red-bd);color:var(--red-t);background:var(--red-bg);}
+.abtn.ac{border-color:var(--green-bd);color:var(--green-t);background:var(--green-bg);}
+
+/* BADGES */
+.badge{display:inline-block;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:700;}
+.b-public{background:#f0f1f4;color:#5a6a80;border:1px solid #d0d5dc;}
+.b-guard{background:var(--amber-bg);color:var(--amber-t);border:1px solid var(--amber-bd);}
+.b-client{background:var(--blue-bg);color:var(--blue-t);border:1px solid var(--blue-bd);}
+.b-new{background:var(--amber-bg);color:var(--amber-t);border:1px solid var(--amber-bd);}
+.b-responding{background:var(--blue-bg);color:var(--blue-t);border:1px solid var(--blue-bd);}
+.b-followup{background:var(--red-bg);color:var(--red-t);border:1px solid var(--red-bd);}
+.b-closed{background:var(--green-bg);color:var(--green-t);border:1px solid var(--green-bd);}
+.b-ncns{background:#fff0e0;color:#7a3a10;border:1px solid #f0b870;}
+.b-low{background:var(--green-bg);color:var(--green-t);}
+.b-medium{background:#f0f2f5;color:var(--text2);}
+.b-high{background:var(--amber-bg);color:var(--amber-t);}
+.b-critical{background:var(--red-bg);color:var(--red-t);}
+
+/* LOG */
+.log-toolbar{display:flex;gap:8px;margin-bottom:11px;flex-wrap:wrap;align-items:center;}
+.ftabs{display:flex;gap:4px;}
+.ftab{padding:4px 12px;border-radius:20px;font-size:11px;font-weight:600;cursor:pointer;border:1px solid var(--border);background:var(--surface);color:var(--text3);font-family:var(--font);}
+.ftab:hover{border-color:var(--border2);color:var(--text2);}
+.ftab.act{background:var(--navy);border-color:var(--navy);color:white;}
+.datetabs{display:flex;gap:4px;}
+.dtab{padding:4px 10px;border-radius:20px;font-size:11px;font-weight:600;cursor:pointer;border:1px solid var(--border);background:var(--surface);color:var(--text3);font-family:var(--font);}
+.dtab:hover{border-color:var(--border2);color:var(--text2);}
+.dtab.act{background:var(--surface2);border-color:var(--border2);color:var(--text);}
+.search-box{flex:1;min-width:140px;max-width:200px;padding:5px 10px;border:1px solid var(--border);border-radius:20px;font-size:12px;font-family:var(--font);color:var(--text);}
+.search-box:focus{outline:none;border-color:var(--navy);}
+.log-count{font-size:11px;color:var(--text3);margin-left:auto;}
+.le{display:flex;gap:10px;padding:9px 0;border-bottom:1px solid var(--border);}
+.le:last-child{border-bottom:none;}
+.lt{font-family:var(--mono);font-size:11px;color:var(--text3);min-width:54px;padding-top:2px;flex-shrink:0;}
+.lb{flex:1;min-width:0;}
+.ltitle{display:flex;flex-wrap:wrap;gap:4px;align-items:center;margin-bottom:3px;}
+.ltxt{font-size:13px;color:var(--text);}
+.ltxt.bold{font-weight:600;}
+.lnotes{font-size:12px;color:var(--text2);margin-top:2px;}
+.lloc{font-size:11px;color:var(--text3);margin-top:2px;}
+.ldispatcher{font-size:11px;color:var(--text3);margin-top:2px;}
+.le-promote{padding:3px 8px;border:1px solid var(--border);border-radius:var(--r);font-size:10px;font-weight:600;color:var(--text3);background:var(--surface2);cursor:pointer;white-space:nowrap;font-family:var(--font);}
+.le-promote:hover{border-color:var(--red-bd);color:var(--red-t);background:var(--red-bg);}
+.es{text-align:center;padding:32px 0;color:var(--text3);font-size:13px;}
+.export-btn{padding:4px 11px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);color:var(--text2);font-size:11px;font-weight:600;cursor:pointer;font-family:var(--font);}
+.export-btn:hover{background:var(--gray-bg);}
+.loading-msg{text-align:center;padding:20px;color:var(--text3);font-size:13px;}
+
+/* POLL INDICATOR */
+#poll-dot{width:6px;height:6px;border-radius:50%;background:var(--green-bd);display:inline-block;margin-left:6px;transition:background 0.3s;}
+#poll-dot.syncing{background:var(--amber-bd);}
+
+::-webkit-scrollbar{width:5px;}
+::-webkit-scrollbar-track{background:transparent;}
+::-webkit-scrollbar-thumb{background:var(--gray-bd);border-radius:3px;}
+</style>
+</head>
+<body>
+
+<!-- DISPATCHER MODAL -->
+<div class="overlay" id="dispatcher-overlay">
+  <div class="modal">
+    <h2>Who is on dispatch?</h2>
+    <div class="dispatcher-grid" id="dispatcher-list"></div>
+    <div style="font-size:11px;color:var(--text3);margin-bottom:8px;">Or add a new dispatcher:</div>
+    <div class="dp-add-row">
+      <input type="text" id="new-dispatcher-input" placeholder="Full name or initials..." maxlength="60">
+      <button class="dp-add-btn" onclick="addAndSelectDispatcher()">Add &amp; Select</button>
+    </div>
+  </div>
+</div>
+
+<!-- HANDOFF MODAL -->
+<div class="overlay hidden" id="handoff-overlay">
+  <div class="modal">
+    <h2>Shift Handoff</h2>
+    <p style="font-size:13px;color:var(--text2);margin-bottom:14px;">Select the incoming dispatcher. The shift change will be logged.</p>
+    <div class="dispatcher-grid" id="handoff-list"></div>
+    <hr class="modal-divider">
+    <div class="dp-add-row">
+      <input type="text" id="handoff-new-input" placeholder="Add new dispatcher..." maxlength="60">
+      <button class="dp-add-btn" onclick="addAndHandoff()">Add &amp; Handoff</button>
+    </div>
+    <button onclick="closeHandoff()" style="width:100%;margin-top:10px;padding:8px;border:1px solid var(--border);border-radius:var(--r);background:var(--surface2);color:var(--text2);font-size:13px;cursor:pointer;font-family:var(--font);">Cancel</button>
+  </div>
+</div>
+
+<!-- SETTINGS MODAL -->
+<div class="overlay hidden" id="settings-overlay">
+  <div class="modal">
+    <h2>Settings</h2>
+    <div class="ssect">
+      <h3>Email Alerts — n8n Webhook</h3>
+      <div class="sfield"><label>Webhook URL</label><input type="text" id="s-webhook" placeholder="https://your-n8n.com/webhook/fpi-dispatch"></div>
+      <div class="sfield"><label>Alert Recipient Emails (comma-separated)</label><input type="text" id="s-emails" placeholder="ops@fpisecurity.com, daniel@fpisecurity.com"></div>
+      <div style="display:flex;align-items:center;gap:8px;margin-top:6px;">
+        <button class="s-test" onclick="testWebhook()">Send Test Alert</button>
+        <div id="tresult" class="tresult"></div>
+      </div>
+    </div>
+    <div class="ssect">
+      <h3>Alert Triggers</h3>
+      <div class="strow"><div><div class="stlabel">Critical Priority</div></div><button class="toggle" id="t-alert_critical" onclick="toggleS(this)"></button></div>
+      <div class="strow"><div><div class="stlabel">High Priority</div></div><button class="toggle" id="t-alert_high" onclick="toggleS(this)"></button></div>
+      <div class="strow"><div><div class="stlabel">Guard — Follow-up Needed</div></div><button class="toggle" id="t-alert_followup" onclick="toggleS(this)"></button></div>
+      <div class="strow"><div><div class="stlabel">No Call / No Show</div></div><button class="toggle" id="t-alert_ncns" onclick="toggleS(this)"></button></div>
+      <div class="strow"><div><div class="stlabel">Client Calls</div></div><button class="toggle" id="t-alert_client" onclick="toggleS(this)"></button></div>
+    </div>
+    <div class="ssect">
+      <h3>Dispatcher Roster</h3>
+      <div class="dp-manage" id="dp-manage-list"></div>
+      <div class="dp-add-row" style="margin-top:8px;">
+        <input type="text" id="dp-manage-input" placeholder="Add dispatcher..." maxlength="60">
+        <button class="dp-add-btn" onclick="addDispatcherFromSettings()">Add</button>
+      </div>
+    </div>
+    <div class="ssect">
+      <h3>Data</h3>
+      <div style="display:flex;gap:8px;">
+        <button class="s-test" onclick="exportCSV()">Export Log as CSV</button>
+      </div>
+    </div>
+    <div class="sbtns">
+      <button class="s-cancel" onclick="closeSettings()">Cancel</button>
+      <button class="s-save" onclick="saveSettings()">Save Settings</button>
+    </div>
+  </div>
+</div>
+
+<!-- NOTIFICATIONS -->
+<div id="notif-bar"></div>
+
+<!-- HEADER -->
+<div id="app-header">
+  <div>
+    <div class="hd-brand-name">FPI SECURITY SERVICES</div>
+    <div class="hd-brand-sub">DISPATCH OPERATIONS CENTER</div>
+  </div>
+  <div class="hd-clock" id="clk">--:--:--</div>
+  <div class="hd-right">
+    <div id="stats-bar"></div>
+    <div class="hd-dispatcher" id="dispatcher-indicator">
+      On duty: <strong id="dispatcher-name-hd">—</strong>
+      <button onclick="openHandoff()">hand off</button>
+      <span id="poll-dot" title="Live sync"></span>
+    </div>
+    <button class="hd-btn" onclick="exportCSV()">Export</button>
+    <button class="hd-btn" id="settings-btn" onclick="openSettings()"><span id="wdot" class="wdot none"></span>Settings</button>
+  </div>
+</div>
+
+<!-- BODY -->
+<div id="app-body">
+  <div id="entry-col">
+
+    <div>
+      <div class="fl">QUICK LOG</div>
+      <div class="qa-grid">
+        <button class="qa-btn qa-checkin" onclick="quickLog('checkin')">Guard Check-In / Post Check</button>
+        <button class="qa-btn qa-ncns" onclick="quickLog('ncns')">No Call / No Show</button>
+        <button class="qa-btn qa-ncns" onclick="quickLog('late')">Late to Post</button>
+        <button class="qa-btn qa-sched" onclick="quickLog('abandoned')">Post Abandoned</button>
+        <button class="qa-btn qa-sched" onclick="quickLog('scheduling')">Scheduling Issue</button>
+      </div>
+    </div>
+
+    <div style="border-top:1px solid var(--border);"></div>
+
+    <div>
+      <div class="fl">CALLER TYPE</div>
+      <div class="ctr">
+        <button class="cbtn" id="bt-public" onclick="setCT('public')">Public</button>
+        <button class="cbtn" id="bt-guard" onclick="setCT('guard')">Guard</button>
+        <button class="cbtn" id="bt-client" onclick="setCT('client')">Client</button>
+      </div>
+    </div>
+
+    <div id="gf" class="gf" style="display:none;">
+      <div><div class="fl" style="margin-bottom:4px;">GUARD NAME</div>
+      <input class="fi" id="gname" type="text" placeholder="Officer name..." oninput="fm.guardName=this.value"></div>
+      <div class="grp">
+        <div><div class="fl" style="margin-bottom:4px;">UNIT / POST</div><input class="fi" id="gunit" type="text" placeholder="Unit #..." oninput="fm.unitId=this.value"></div>
+        <div><div class="fl" style="margin-bottom:4px;">LOCATION</div><input class="fi" id="gloc" type="text" placeholder="Site..." oninput="fm.location=this.value"></div>
+      </div>
+    </div>
+
+    <div id="clf" class="cf" style="display:none;">
+      <div><div class="fl" style="margin-bottom:4px;">CLIENT / CONTACT</div>
+      <input class="fi" id="cname" type="text" placeholder="Client name..." oninput="fm.guardName=this.value"></div>
+      <div><div class="fl" style="margin-bottom:4px;">PROPERTY / ACCOUNT</div>
+      <input class="fi" id="cloc2" type="text" placeholder="Property name..." oninput="fm.location=this.value"></div>
+    </div>
+
+    <div>
+      <div class="fl">CATEGORY</div>
+      <div class="cgrid" id="cgrid"></div>
+    </div>
+
+    <div>
+      <div class="fl">PRIORITY</div>
+      <div class="prow" id="prow"></div>
+    </div>
+
+    <div class="track-row" id="track-row">
+      <div>
+        <div class="track-label" id="track-label">Track as Active Incident</div>
+        <div style="font-size:11px;color:var(--text3);margin-top:1px;">Add to incident board for follow-up</div>
+      </div>
+      <button class="toggle" id="track-toggle" onclick="toggleTrack()"></button>
+    </div>
+
+    <div>
+      <div class="fl" style="margin-bottom:4px;">NOTES</div>
+      <textarea class="fi" id="notes" placeholder="Brief description of the call..." oninput="fm.notes=this.value"></textarea>
+    </div>
+
+    <button class="log-btn" id="log-btn" onclick="submitEntry()">LOG ENTRY</button>
+    <div style="font-size:10px;color:var(--text3);text-align:center;margin-top:-6px;">Ctrl+Enter from Notes field</div>
+  </div>
+
+  <div id="right-col">
+    <div id="incidents-panel">
+      <div class="ptitle">Active Incidents <span class="ptitle-r" id="inc-sub"></span></div>
+      <div id="ilist"></div>
+    </div>
+
+    <div id="log-panel">
+      <div class="log-toolbar">
+        <div class="ftabs" id="ftabs"></div>
+        <div class="datetabs" id="datetabs"></div>
+        <input type="text" class="search-box" id="search-box" placeholder="Search log..." oninput="rLog()">
+        <span class="log-count" id="log-count"></span>
+        <button class="export-btn" onclick="exportCSV()">CSV</button>
+      </div>
+      <div id="llist"><div class="loading-msg">Loading...</div></div>
+    </div>
+  </div>
+</div>
+
+<script>
+const CATS=['Incident Report','Patrol Check-in','Disturbance','Trespassing',
+  'Medical','Gate / Access','Client Complaint','Suspicious Person','Vehicle / Accident','Other'];
+const PRIS=['low','medium','high','critical'];
+const PLAB={low:'Low',medium:'Med',high:'High',critical:'CRITICAL'};
+const CLAB={public:'Public',guard:'Guard',client:'Client'};
+const SLABEL={new:'New',responding:'Responding',followup:'Follow-up',closed:'Closed'};
+const QUICK={
+  checkin:{ct:'guard',cat:'Patrol Check-in',pri:'low',trackInc:false},
+  ncns:{ct:'guard',cat:'Patrol Check-in',pri:'high',trackInc:true},
+  late:{ct:'guard',cat:'Patrol Check-in',pri:'medium',trackInc:false},
+  abandoned:{ct:'guard',cat:'Incident Report',pri:'high',trackInc:true},
+  scheduling:{ct:'guard',cat:'Other',pri:'medium',trackInc:false}
+};
+
+let fm={callerType:null,category:null,priority:'medium',guardName:'',unitId:'',location:'',notes:'',trackInc:false};
+let entries=[];
+let dispatchers=[];
+let appSettings={};
+let currentDispatcher=sessionStorage.getItem('fpi_dispatcher')||'';
+let logFilter='all';
+let dateFilter=7;
+let nid=1;
+let pollTimer=null;
+
+/* ---- API ---- */
+async function api(path,method='GET',body){
+  const opts={method,headers:{}};
+  if(body){opts.headers['Content-Type']='application/json';opts.body=JSON.stringify(body);}
+  const r=await fetch(path,opts);
+  if(!r.ok) throw new Error(`API error ${r.status}: ${await r.text()}`);
+  return r.json();
+}
+
+/* ---- INIT ---- */
+async function initApp(){
+  updateClock();
+  setInterval(updateClock,1000);
+  rCats();rPris();
+
+  try{
+    [dispatchers,appSettings]=await Promise.all([
+      api('/api/dispatchers'),
+      api('/api/settings')
+    ]);
+  }catch(e){showN('Could not reach server. Check deployment.','err');}
+
+  updateDot();
+
+  if(!currentDispatcher){
+    renderDispatcherModal('dispatcher-list','selectDispatcher');
+    document.getElementById('dispatcher-overlay').classList.remove('hidden');
+  } else {
+    document.getElementById('dispatcher-name-hd').textContent=currentDispatcher;
+    await loadEntries();
+    startPolling();
+  }
+}
+
+async function loadEntries(){
+  setPollDot(true);
+  try{
+    entries=await api(`/api/entries?days=${Math.max(dateFilter,30)}`);
+    entries=entries.map(e=>({...e,ts:new Date(e.ts)}));
+    rAll();
+  }catch(e){
+    showN('Failed to load entries from server.','err');
+  }
+  setPollDot(false);
+}
+
+function startPolling(){
+  if(pollTimer) clearInterval(pollTimer);
+  pollTimer=setInterval(loadEntries,30000);
+}
+
+function setPollDot(syncing){
+  document.getElementById('poll-dot').className=syncing?'syncing':'';
+}
+
+/* ---- DISPATCHER ---- */
+function renderDispatcherModal(containerId,onClickFn){
+  document.getElementById(containerId).innerHTML=dispatchers.map(d=>
+    `<button class="dp-btn" onclick="${onClickFn}('${esc(d.name)}')">
+      ${esc(d.name)}
+    </button>`
+  ).join('')||(dispatchers.length===0?'<div style="color:var(--text3);font-size:13px;padding:8px 0;">No dispatchers yet — add one below.</div>':'');
+}
+
+async function selectDispatcher(name){
+  currentDispatcher=name;
+  sessionStorage.setItem('fpi_dispatcher',name);
+  document.getElementById('dispatcher-name-hd').textContent=name;
+  document.getElementById('dispatcher-overlay').classList.add('hidden');
+  try{await api('/api/shifts','POST',{dispatcher_name:name,action:'start'});}catch(e){}
+  showN('Shift started — '+name,'ok',4000);
+  await loadEntries();
+  startPolling();
+}
+
+async function addAndSelectDispatcher(){
+  const inp=document.getElementById('new-dispatcher-input');
+  const name=inp.value.trim();
+  if(!name) return;
+  try{
+    const d=await api('/api/dispatchers','POST',{name});
+    dispatchers.push(d);
+    dispatchers.sort((a,b)=>a.name.localeCompare(b.name));
+    inp.value='';
+    await selectDispatcher(d.name);
+  }catch(e){showN('Error adding dispatcher.','err');}
+}
+
+function openHandoff(){
+  renderDispatcherModal('handoff-list','handoffTo');
+  document.getElementById('handoff-overlay').classList.remove('hidden');
+}
+function closeHandoff(){document.getElementById('handoff-overlay').classList.add('hidden');}
+
+async function handoffTo(name){
+  try{
+    await api('/api/shifts','POST',{dispatcher_name:currentDispatcher,action:'handoff',note:'Handing off to '+name});
+    await api('/api/shifts','POST',{dispatcher_name:name,action:'start'});
+  }catch(e){}
+  currentDispatcher=name;
+  sessionStorage.setItem('fpi_dispatcher',name);
+  document.getElementById('dispatcher-name-hd').textContent=name;
+  closeHandoff();
+  showN('Shift handed off to '+name,'ok',5000);
+}
+
+async function addAndHandoff(){
+  const inp=document.getElementById('handoff-new-input');
+  const name=inp.value.trim();
+  if(!name) return;
+  try{
+    const d=await api('/api/dispatchers','POST',{name});
+    dispatchers.push(d);dispatchers.sort((a,b)=>a.name.localeCompare(b.name));
+    inp.value='';
+    await handoffTo(d.name);
+  }catch(e){showN('Error adding dispatcher.','err');}
+}
+
+/* ---- FORM ---- */
+function setCT(t){
+  fm.callerType=t;
+  ['public','guard','client'].forEach(x=>{
+    document.getElementById('bt-'+x).className='cbtn'+(t===x?' a'+x[0]:'');
+  });
+  document.getElementById('gf').style.display=t==='guard'?'flex':'none';
+  document.getElementById('clf').style.display=t==='client'?'flex':'none';
+  if(t==='guard') setTrack(fm.category&&fm.category!=='Patrol Check-in');
+  else setTrack(false);
+  rTrackRow();
+}
+
+function setCAT(c){
+  fm.category=c;
+  if(fm.callerType==='guard') setTrack(c!=='Patrol Check-in');
+  rCats();rTrackRow();
+}
+
+function setPRI(p){fm.priority=p;rPris();}
+
+function setTrack(on){
+  fm.trackInc=!!on;
+  document.getElementById('track-toggle').classList.toggle('on',fm.trackInc);
+}
+
+function toggleTrack(){setTrack(!fm.trackInc);rTrackRow();}
+
+function rTrackRow(){
+  const row=document.getElementById('track-row');
+  row.className='track-row'+(fm.trackInc?' active-inc':'');
+  document.getElementById('track-label').textContent=fm.trackInc?'Tracking as Active Incident':'Track as Active Incident';
+}
+
+function quickLog(key){
+  const q=QUICK[key];
+  setCT(q.ct);
+  fm.category=q.cat;fm.priority=q.pri;
+  fm.guardName='';fm.unitId='';fm.location='';fm.notes='';
+  ['gname','gunit','gloc','notes'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  const placeholders={
+    checkin:'All clear / any notes...',
+    ncns:'Add guard name above, then details here.',
+    late:'Add guard name above, then details here.',
+    abandoned:'Add guard name above, then details here.',
+    scheduling:'Describe the scheduling issue...'
+  };
+  document.getElementById('notes').placeholder=placeholders[key]||'Add details...';
+  setTrack(q.trackInc);
+  rCats();rPris();rTrackRow();
+  setTimeout(()=>{const gn=document.getElementById('gname');if(gn)gn.focus();},50);
+}
+
+async function submitEntry(){
+  if(!currentDispatcher){showN('No dispatcher on duty — please select one.','err');return;}
+  if(!fm.callerType){showN('Select a caller type first.','info');return;}
+  if(!fm.category){showN('Select a category first.','info');return;}
+
+  const btn=document.getElementById('log-btn');
+  btn.disabled=true;btn.textContent='Logging...';
+
+  const isNcns=fm.trackInc&&fm.category==='Patrol Check-in'&&fm.priority==='high';
+  const payload={
+    caller_type:fm.callerType,
+    guard_name:fm.guardName,unit_id:fm.unitId,location:fm.location,
+    category:fm.category,priority:fm.priority,notes:fm.notes,
+    status:fm.trackInc?'new':null,
+    is_incident:fm.trackInc,is_ncns:isNcns,
+    dispatcher_name:currentDispatcher,
+    alertRecipients:appSettings.alert_recipients||''
+  };
+
+  try{
+    const entry=await api('/api/entries','POST',payload);
+    entry.ts=new Date(entry.ts);
+    entries.unshift(entry);
+
+    if(isNcns) showN('NCNS logged — '+(entry.guard_name||'Unknown officer')+(entry.location?' @ '+entry.location:''),'ncns');
+    else if(entry.priority==='critical') showN('CRITICAL — '+entry.category+(entry.guard_name?' | '+entry.guard_name:''),'critical');
+    else if(entry.priority==='high') showN('High Priority: '+entry.category+(entry.guard_name?' — '+entry.guard_name:''),'high');
+    else if(entry.caller_type==='client') showN('Client call logged: '+entry.category,'client');
+    else if(entry.is_incident) showN('Incident opened: '+(entry.guard_name||entry.caller_type)+' — '+entry.category,'info');
+    else showN('Entry logged.','ok',3000);
+
+    // Reset
+    const prevCT=fm.callerType;
+    fm={callerType:prevCT,category:null,priority:'medium',guardName:'',unitId:'',location:'',notes:'',trackInc:false};
+    ['gname','gunit','gloc','cname','cloc2','notes'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+    document.getElementById('notes').placeholder='Brief description of the call...';
+    document.getElementById('track-toggle').classList.remove('on');
+    rAll();
+  }catch(e){
+    showN('Failed to save entry. Check connection.','err');
+  }finally{
+    btn.disabled=false;btn.textContent='LOG ENTRY';
+  }
+}
+
+async function updStatus(id,status,isIncident){
+  try{
+    const body={alertRecipients:appSettings.alert_recipients||''};
+    if(status!==undefined) body.status=status;
+    if(isIncident!==undefined) body.is_incident=isIncident;
+    const updated=await api('/api/entries/'+id,'PATCH',body);
+    updated.ts=new Date(updated.ts);
+    const idx=entries.findIndex(e=>e.id===id);
+    if(idx>-1) entries[idx]=updated;
+    if(status==='followup') showN('Follow-up needed: '+(updated.guard_name||'Officer')+' — '+updated.category,'followup');
+    rAll();
+  }catch(e){showN('Failed to update status.','err');}
+}
+
+async function promoteToIncident(id){
+  try{
+    const updated=await api('/api/entries/'+id,'PATCH',{is_incident:true});
+    updated.ts=new Date(updated.ts);
+    const idx=entries.findIndex(e=>e.id===id);
+    if(idx>-1) entries[idx]=updated;
+    showN('Entry promoted to active incident.','info');
+    rAll();
+  }catch(e){showN('Failed to promote entry.','err');}
+}
+
+/* ---- SETTINGS ---- */
+function openSettings(){
+  document.getElementById('s-webhook').value=appSettings.webhook_url||'';
+  document.getElementById('s-emails').value=appSettings.alert_recipients||'';
+  ['alert_critical','alert_high','alert_followup','alert_ncns','alert_client'].forEach(k=>{
+    const t=document.getElementById('t-'+k);
+    if(t) t.classList.toggle('on',appSettings[k]==='true');
+  });
+  renderDpManageList();
+  document.getElementById('tresult').textContent='';
+  document.getElementById('settings-overlay').classList.remove('hidden');
+}
+
+function closeSettings(){document.getElementById('settings-overlay').classList.add('hidden');}
+
+function toggleS(btn){btn.classList.toggle('on');}
+
+async function saveSettings(){
+  const updates={
+    webhook_url:document.getElementById('s-webhook').value.trim(),
+    alert_recipients:document.getElementById('s-emails').value.trim()
+  };
+  ['alert_critical','alert_high','alert_followup','alert_ncns','alert_client'].forEach(k=>{
+    updates[k]=String(document.getElementById('t-'+k).classList.contains('on'));
+  });
+  try{
+    await api('/api/settings','POST',updates);
+    Object.assign(appSettings,updates);
+    updateDot();closeSettings();showN('Settings saved.','ok',3000);
+  }catch(e){showN('Failed to save settings.','err');}
+}
+
+async function addDispatcherFromSettings(){
+  const inp=document.getElementById('dp-manage-input');
+  const name=inp.value.trim();if(!name)return;
+  try{
+    const d=await api('/api/dispatchers','POST',{name});
+    if(!dispatchers.find(x=>x.name===d.name)) dispatchers.push(d);
+    dispatchers.sort((a,b)=>a.name.localeCompare(b.name));
+    inp.value='';renderDpManageList();
+  }catch(e){showN('Error adding dispatcher.','err');}
+}
+
+async function removeDispatcher(name){
+  if(!confirm('Remove '+name+' from the roster?')) return;
+  try{
+    await api('/api/dispatchers','DELETE',{name});
+    dispatchers=dispatchers.filter(d=>d.name!==name);
+    renderDpManageList();
+  }catch(e){showN('Error removing dispatcher.','err');}
+}
+
+function renderDpManageList(){
+  document.getElementById('dp-manage-list').innerHTML=dispatchers.map(d=>
+    `<div class="dp-manage-row">
+      <span style="font-size:13px;">${esc(d.name)}</span>
+      <button class="dp-del" onclick="removeDispatcher('${esc(d.name)}')">Remove</button>
+    </div>`
+  ).join('')||'<div style="color:var(--text3);font-size:12px;">No dispatchers on roster.</div>';
+}
+
+async function testWebhook(){
+  const url=document.getElementById('s-webhook').value.trim();
+  const res=document.getElementById('tresult');
+  if(!url){res.textContent='Enter a URL first.';res.className='tresult err';return;}
+  res.textContent='Sending...';res.className='tresult';
+  try{
+    await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({alertType:'TEST',level:'info',priority:'low',callerType:'system',
+        guardName:'',unitId:'',location:'FPI Dispatch',category:'System Test',
+        notes:'Test from FPI Dispatch Dashboard. Webhook is working.',
+        timestamp:new Date().toLocaleString('en-US'),entryId:0,
+        dispatcher:'System',recipients:document.getElementById('s-emails').value.trim()})});
+    res.textContent='Test sent — check your email.';res.className='tresult ok';
+  }catch(e){res.textContent='Failed: '+e.message;res.className='tresult err';}
+}
+
+function updateDot(){
+  const hasWebhook=!!(appSettings.webhook_url);
+  document.getElementById('wdot').className='wdot '+(hasWebhook?'ok':'warn');
+  document.getElementById('settings-btn').classList.toggle('warn',!hasWebhook);
+}
+
+/* ---- EXPORT ---- */
+function exportCSV(){
+  if(!entries.length){showN('No entries to export.','info');return;}
+  const cols=['ID','Timestamp','Caller','Guard/Client','Unit','Location','Category','Priority','Notes','Status','Incident','NCNS','Dispatcher'];
+  const rows=entries.map(e=>[
+    e.id,e.ts.toLocaleString('en-US'),e.caller_type,e.guard_name||'',e.unit_id||'',e.location||'',
+    e.category,e.priority,(e.notes||'').replace(/,/g,';'),e.status||'',
+    e.is_incident?'Y':'',e.is_ncns?'Y':'',e.dispatcher_name||''
+  ].map(v=>`"${v}"`).join(','));
+  const csv=[cols.join(','),...rows].join('\n');
+  const a=document.createElement('a');
+  a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv);
+  a.download='fpi-dispatch-'+new Date().toISOString().slice(0,10)+'.csv';a.click();
+}
+
+/* ---- NOTIFICATIONS ---- */
+function showN(msg,type,dur=10000){
+  const id=nid++;
+  const el=document.createElement('div');
+  el.className='ni ni-'+type;el.id='ni-'+id;
+  el.innerHTML=`<span>${msg}</span><button class="ni-dismiss" onclick="dimN(${id})">&#10005;</button>`;
+  document.getElementById('notif-bar').appendChild(el);
+  setTimeout(()=>dimN(id),dur);
+}
+function dimN(id){const el=document.getElementById('ni-'+id);if(el)el.remove();}
+
+/* ---- RENDER ---- */
+function esc(s){return(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function fmtTime(d){return d.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',hour12:true});}
+function fmtDate(d){
+  const today=new Date();
+  if(d.toDateString()===today.toDateString()) return fmtTime(d);
+  return (d.getMonth()+1)+'/'+(d.getDate())+' '+fmtTime(d);
+}
+function fmtElapsed(d){
+  const m=Math.floor((Date.now()-d.getTime())/60000);
+  if(m<1)return 'just now';if(m<60)return m+'m ago';
+  return Math.floor(m/60)+'h '+(m%60)+'m ago';
+}
+
+function rCats(){
+  document.getElementById('cgrid').innerHTML=CATS.map(c=>
+    `<button class="catb${fm.category===c?' sel':''}" onclick="setCAT('${c.replace(/'/g,"\\'")}')">${c}</button>`
+  ).join('');
+}
+
+function rPris(){
+  const m={low:'l',medium:'m',high:'h',critical:'c'};
+  document.getElementById('prow').innerHTML=PRIS.map(p=>
+    `<button class="pbtn${fm.priority===p?' p'+m[p]:''}" onclick="setPRI('${p}')">${PLAB[p]}</button>`
+  ).join('');
+}
+
+function rStats(){
+  const active=entries.filter(e=>e.is_incident).length;
+  const fu=entries.filter(e=>e.is_incident&&e.status==='followup').length;
+  const ncns=entries.filter(e=>e.is_ncns&&e.ts>new Date(Date.now()-8*3600000)).length;
+  document.getElementById('stats-bar').innerHTML=
+    `<span class="schip schip-e">${entries.length} entries</span>`+
+    (active?`<span class="schip schip-a">${active} active</span>`:'')+
+    (fu?`<span class="schip schip-f">${fu} follow-up</span>`:'')+
+    (ncns?`<span class="schip schip-f">${ncns} NCNS</span>`:'');
+}
+
+function rIncidents(){
+  const inc=entries.filter(e=>e.is_incident);
+  document.getElementById('inc-sub').textContent=inc.length?inc.length+' open':'all clear';
+  if(!inc.length){document.getElementById('ilist').innerHTML='<div class="es">No active incidents — all clear</div>';return;}
+  document.getElementById('ilist').innerHTML=inc.map(e=>{
+    const m=Math.floor((Date.now()-e.ts.getTime())/60000);
+    const od=e.status==='followup'&&m>15;
+    const sl=e.status?e.status[0]:'n';
+    const ctBadge=e.caller_type!=='guard'?`<span class="badge b-${e.caller_type}" style="margin-right:3px;">${CLAB[e.caller_type]}</span>`:'';
+    const ncnsBadge=e.is_ncns?`<span class="badge b-ncns" style="margin-right:3px;">NCNS</span>`:'';
+    return`<div class="icard s${sl}">
+      <div class="itop">
+        <div><div class="igname">${ncnsBadge}${ctBadge}${esc(e.guard_name||'Unknown')}</div>
+        <div class="imeta">${[e.unit_id,e.location].filter(Boolean).map(esc).join(' — ')}</div></div>
+        <div style="text-align:right;flex-shrink:0;margin-left:10px;">
+          <span class="badge b-${e.status}">${SLABEL[e.status]||''}</span>
+          <div class="elapsed${od?' od':''}">${fmtElapsed(e.ts)}</div>
+        </div>
+      </div>
+      <div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:${e.notes?'5px':'0'};">
+        <span class="badge b-${e.priority}">${PLAB[e.priority]}</span>
+        <span style="font-size:12px;color:var(--text2);padding-top:2px;">${esc(e.category)}</span>
+        ${e.dispatcher_name?`<span style="font-size:11px;color:var(--text3);padding-top:3px;">· ${esc(e.dispatcher_name)}</span>`:''}
+      </div>
+      ${e.notes?`<div class="inotes">${esc(e.notes)}</div>`:''}
+      <div class="iacts">
+        ${e.status==='new'?`<button class="abtn ar" onclick="updStatus(${e.id},'responding')">Mark Responding</button>`:''}
+        ${e.status!=='followup'?`<button class="abtn af" onclick="updStatus(${e.id},'followup')">Needs Follow-up</button>`:''}
+        <button class="abtn ac" onclick="updStatus(${e.id},'closed',false)">Close</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function setDateFilter(d){dateFilter=d;rLog();}
+function setF(f){logFilter=f;rLog();}
+
+function rLog(){
+  document.getElementById('ftabs').innerHTML=
+    ['all','public','guard','client'].map(f=>
+      `<button class="ftab${logFilter===f?' act':''}" onclick="setF('${f}')">${f[0].toUpperCase()+f.slice(1)}</button>`
+    ).join('');
+
+  document.getElementById('datetabs').innerHTML=
+    [[1,'Today'],[7,'7d'],[30,'30d']].map(([d,l])=>
+      `<button class="dtab${dateFilter===d?' act':''}" onclick="setDateFilter(${d})">${l}</button>`
+    ).join('');
+
+  const search=document.getElementById('search-box').value.toLowerCase().trim();
+  const cutoff=new Date(Date.now()-dateFilter*24*60*60*1000);
+
+  let list=entries.filter(e=>{
+    if(e.ts<cutoff) return false;
+    if(logFilter!=='all'&&e.caller_type!==logFilter) return false;
+    if(search){
+      const hay=(e.guard_name+' '+e.notes+' '+e.category+' '+e.location+' '+e.dispatcher_name).toLowerCase();
+      if(!hay.includes(search)) return false;
+    }
+    return true;
+  });
+
+  document.getElementById('log-count').textContent=list.length+' entries';
+
+  if(!list.length){
+    document.getElementById('llist').innerHTML='<div class="es">No entries match the current filter</div>';
+    return;
+  }
+
+  document.getElementById('llist').innerHTML=list.map(e=>{
+    const stBadge=e.status?`<span class="badge b-${e.status}">${SLABEL[e.status]}</span>`:'';
+    const ncnsBadge=e.is_ncns?`<span class="badge b-ncns">NCNS</span>`:'';
+    const canPromote=!e.is_incident;
+    return`<div class="le">
+      <div class="lt">${fmtDate(e.ts)}</div>
+      <div class="lb">
+        <div class="ltitle">
+          ${ncnsBadge}<span class="badge b-${e.caller_type}">${CLAB[e.caller_type]}</span>
+          ${e.guard_name?`<span class="ltxt bold">${esc(e.guard_name)}</span><span style="color:var(--text3);">—</span>`:''}
+          <span class="ltxt">${esc(e.category)}</span>
+          <span class="badge b-${e.priority}">${PLAB[e.priority]}</span>
+          ${stBadge}
+          ${canPromote?`<button class="le-promote" onclick="promoteToIncident(${e.id})">+ Track</button>`:''}
+        </div>
+        ${(e.location||e.unit_id)?`<div class="lloc">${[e.unit_id,e.location].filter(Boolean).map(esc).join(' · ')}</div>`:''}
+        ${e.notes?`<div class="lnotes">${esc(e.notes)}</div>`:''}
+        ${e.dispatcher_name?`<div class="ldispatcher">Logged by ${esc(e.dispatcher_name)}</div>`:''}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function rAll(){rStats();rIncidents();rLog();}
+
+function updateClock(){
+  document.getElementById('clk').textContent=
+    new Date().toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:true});
+}
+
+/* ---- KEYBOARD ---- */
+document.addEventListener('keydown',e=>{
+  if((e.ctrlKey||e.metaKey)&&e.key==='Enter') submitEntry();
+  if(e.key==='Escape'){
+    closeSettings();closeHandoff();
+  }
+});
+document.getElementById('notes').addEventListener('keydown',function(e){
+  if((e.ctrlKey||e.metaKey)&&e.key==='Enter'){e.preventDefault();submitEntry();}
+});
+['settings-overlay','handoff-overlay'].forEach(id=>{
+  document.getElementById(id).addEventListener('click',function(e){if(e.target===this)this.classList.add('hidden');});
+});
+
+initApp();
+</script>
+</body>
+</html>
