@@ -1,6 +1,6 @@
-import { sql } from '@vercel/postgres';
+const { sql } = require('@vercel/postgres');
 
-export default async function handler(req, res) {
+module.exports = async function handler(req, res) {
   if (req.method !== 'GET') return res.status(405).end();
   try {
     await sql`CREATE TABLE IF NOT EXISTS dispatchers (
@@ -9,7 +9,6 @@ export default async function handler(req, res) {
       active BOOLEAN DEFAULT true,
       created_at TIMESTAMPTZ DEFAULT NOW()
     )`;
-
     await sql`CREATE TABLE IF NOT EXISTS entries (
       id SERIAL PRIMARY KEY,
       ts TIMESTAMPTZ DEFAULT NOW(),
@@ -25,7 +24,6 @@ export default async function handler(req, res) {
       is_ncns BOOLEAN DEFAULT false,
       dispatcher_name VARCHAR(100) DEFAULT ''
     )`;
-
     await sql`CREATE TABLE IF NOT EXISTS shift_log (
       id SERIAL PRIMARY KEY,
       ts TIMESTAMPTZ DEFAULT NOW(),
@@ -33,12 +31,10 @@ export default async function handler(req, res) {
       action VARCHAR(20),
       note TEXT DEFAULT ''
     )`;
-
     await sql`CREATE TABLE IF NOT EXISTS app_settings (
       key VARCHAR(100) PRIMARY KEY,
       value TEXT
     )`;
-
     await sql`INSERT INTO app_settings (key, value) VALUES
       ('alert_critical', 'true'),
       ('alert_high', 'true'),
@@ -47,10 +43,9 @@ export default async function handler(req, res) {
       ('alert_client', 'false'),
       ('alert_recipients', '')
       ON CONFLICT (key) DO NOTHING`;
-
-    res.json({ ok: true, message: 'Database initialized successfully.' });
+    res.status(200).json({ ok: true, message: 'Database initialized successfully.' });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: err.message });
   }
-}
+};
