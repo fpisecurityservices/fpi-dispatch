@@ -102,6 +102,9 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:14
 .wdot.ok{background:#6ee09a;}
 .wdot.warn{background:#ffd580;}
 .wdot.none{background:rgba(255,255,255,0.3);}
+.mode-badge{font-size:10px;font-weight:700;padding:3px 9px;border-radius:20px;letter-spacing:0.06em;}
+.mode-badge.live{background:rgba(110,224,154,0.18);color:#6ee09a;border:1px solid rgba(110,224,154,0.3);}
+.mode-badge.offline{background:rgba(255,213,128,0.18);color:#ffd580;border:1px solid rgba(255,213,128,0.3);}
 
 /* LAYOUT */
 #app-body{display:grid;grid-template-columns:360px 1fr;height:calc(100vh - 50px);}
@@ -320,6 +323,7 @@ textarea.fi{resize:none;height:58px;}
       <button onclick="openHandoff()">hand off</button>
       <span id="poll-dot" title="Live sync"></span>
     </div>
+    <span id="mode-badge" class="mode-badge"></span>
     <button class="hd-btn" onclick="exportCSV()">Export</button>
     <button class="hd-btn" id="settings-btn" onclick="openSettings()"><span id="wdot" class="wdot none"></span>Settings</button>
   </div>
@@ -414,6 +418,111 @@ textarea.fi{resize:none;height:58px;}
 </div>
 
 <script>
+/* ============================================================
+   DUAL-MODE: auto-detects Vercel API. Falls back to localStorage.
+   offlineMode=true  → all data stored locally in browser
+   offlineMode=false → all data stored in Postgres via API
+   ============================================================ */
+let offlineMode = false;
+
+/* ---- LOCALSTORAGE LAYER ---- */
+const LS = {
+  getEntries(){ try{ return JSON.parse(localStorage.getItem('fpi_entries')||'[]'); }catch(e){ return []; } },
+  saveEntries(arr){ try{ localStorage.setItem('fpi_entries',JSON.stringify(arr.slice(0,1000))); }catch(e){} },
+  getDispatchers(){ try{ return JSON.parse(localStorage.getItem('fpi_dispatchers')||'[]'); }catch(e){ return []; } },
+  saveDispatchers(arr){ try{ localStorage.setItem('fpi_dispatchers',JSON.stringify(arr)); }catch(e){} },
+  getSettings(){ try{ return JSON.parse(localStorage.getItem('fpi_settings')||'{}'); }catch(e){ return {}; } },
+  saveSettings(obj){ try{ localStorage.setItem('fpi_settings',JSON.stringify(obj)); }catch(e){} },
+  nextId(){ const n=parseInt(localStorage.getItem('fpi_next_id')||'1'); localStorage.setItem('fpi_next_id',n+1); return n; }
+};
+
+/* ---- RAW API CALL ---- */
+async function api(path,method='GET',body){
+  const opts={method,headers:{}};
+  if(body){ opts.headers['Content-Type']='application/json'; opts.body=JSON.stringify(body); }
+  const r=await fetch(path,opts);
+  if(!r.ok) throw new Error(`API ${r.status}`);
+  return r.json();
+}
+
+/* ---- DATA ACCESS LAYER (works in both modes) ---- */
+const DAL = {
+  async getDispatchers(){
+    if(offlineMode) return LS.getDispatchers();
+    return api('/api/dispatchers');
+  },
+  async addDispatcher(name){
+    if(offlineMode){
+      const list=LS.getDispatchers();
+      if(list.find(d=>d.name===name)) return list.find(d=>d.name===name);
+      const d={id:Date.now(),name};
+      list.push(d); list.sort((a,b)=>a.name.localeCompare(b.name));
+      LS.saveDispatchers(list); return d;
+    }
+    return api('/api/dispatchers','POST',{name});
+  },
+  async removeDispatcher(name){
+    if(offlineMode){
+      LS.saveDispatchers(LS.getDispatchers().filter(d=>d.name!==name));
+      return {ok:true};
+    }
+    return api('/api/dispatchers','DELETE',{name});
+  },
+  async getSettings(){
+    if(offlineMode) return LS.getSettings();
+    return api('/api/settings');
+  },
+  async saveSettings(updates){
+    if(offlineMode){
+      LS.saveSettings({...LS.getSettings(),...updates}); return {ok:true};
+    }
+    return api('/api/settings','POST',updates);
+  },
+  async getEntries(days){
+    if(offlineMode){
+      const cutoff=new Date(Date.now()-days*24*60*60*1000);
+      return LS.getEntries().filter(e=>new Date(e.ts)>cutoff);
+    }
+    return api(`/api/entries?days=${days}`);
+  },
+  async createEntry(payload){
+    if(offlineMode){
+      const entry={...payload,id:LS.nextId(),ts:new Date().toISOString()};
+      const list=LS.getEntries(); list.unshift(entry); LS.saveEntries(list);
+      return entry;
+    }
+    return api('/api/entries','POST',payload);
+  },
+  async updateEntry(id,updates){
+    if(offlineMode){
+      const list=LS.getEntries();
+      const idx=list.findIndex(e=>e.id===id);
+      if(idx>-1){ Object.assign(list[idx],updates); LS.saveEntries(list); return list[idx]; }
+      throw new Error('Not found');
+    }
+    return api('/api/entries/'+id,'PATCH',updates);
+  },
+  async logShift(dispatcher_name,action,note){
+    if(offlineMode) return;
+    try{ await api('/api/shifts','POST',{dispatcher_name,action,note}); }catch(e){}
+  },
+  async fireWebhookOffline(alertType,level,entry){
+    // Client-side webhook fire used only in offline mode
+    const url=appSettings.webhook_url;
+    if(!url) return;
+    try{
+      await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({alertType,level,priority:entry.priority,
+          callerType:entry.caller_type,guardName:entry.guard_name||'',
+          unitId:entry.unit_id||'',location:entry.location||'',
+          category:entry.category,notes:entry.notes||'',
+          timestamp:new Date(entry.ts).toLocaleString('en-US'),
+          entryId:entry.id,dispatcher:entry.dispatcher_name||'Dispatch',
+          recipients:appSettings.alert_recipients||''})});
+    }catch(e){ console.error('Webhook:',e.message); }
+  }
+};
+
 const CATS=['Incident Report','Patrol Check-in','Disturbance','Trespassing',
   'Medical','Gate / Access','Client Complaint','Suspicious Person','Vehicle / Accident','Other'];
 const PRIS=['low','medium','high','critical'];
@@ -448,17 +557,41 @@ async function api(path,method='GET',body){
 }
 
 /* ---- INIT ---- */
+async function detectMode(){
+  try{
+    const ctrl=new AbortController();
+    const t=setTimeout(()=>ctrl.abort(),3000);
+    const r=await fetch('/api/dispatchers',{signal:ctrl.signal});
+    clearTimeout(t);
+    offlineMode=!r.ok;
+  }catch(e){ offlineMode=true; }
+}
+
+function setModeBadge(){
+  const el=document.getElementById('mode-badge');
+  if(offlineMode){
+    el.textContent='OFFLINE'; el.className='mode-badge offline';
+  } else {
+    el.textContent='LIVE'; el.className='mode-badge live';
+  }
+}
+
 async function initApp(){
   updateClock();
   setInterval(updateClock,1000);
   rCats();rPris();
 
+  await detectMode();
+  setModeBadge();
+
   try{
     [dispatchers,appSettings]=await Promise.all([
-      api('/api/dispatchers'),
-      api('/api/settings')
+      DAL.getDispatchers(),
+      DAL.getSettings()
     ]);
-  }catch(e){showN('Could not reach server. Check deployment.','err');}
+  }catch(e){
+    dispatchers=[];appSettings={};
+  }
 
   updateDot();
 
@@ -475,11 +608,11 @@ async function initApp(){
 async function loadEntries(){
   setPollDot(true);
   try{
-    entries=await api(`/api/entries?days=${Math.max(dateFilter,30)}`);
-    entries=entries.map(e=>({...e,ts:new Date(e.ts)}));
+    const raw=await DAL.getEntries(Math.max(dateFilter,30));
+    entries=raw.map(e=>({...e,ts:new Date(e.ts)}));
     rAll();
   }catch(e){
-    showN('Failed to load entries from server.','err');
+    showN('Failed to load entries.','err');
   }
   setPollDot(false);
 }
@@ -507,7 +640,7 @@ async function selectDispatcher(name){
   sessionStorage.setItem('fpi_dispatcher',name);
   document.getElementById('dispatcher-name-hd').textContent=name;
   document.getElementById('dispatcher-overlay').classList.add('hidden');
-  try{await api('/api/shifts','POST',{dispatcher_name:name,action:'start'});}catch(e){}
+  await DAL.logShift(name,'start','');
   showN('Shift started — '+name,'ok',4000);
   await loadEntries();
   startPolling();
@@ -518,8 +651,8 @@ async function addAndSelectDispatcher(){
   const name=inp.value.trim();
   if(!name) return;
   try{
-    const d=await api('/api/dispatchers','POST',{name});
-    dispatchers.push(d);
+    const d=await DAL.addDispatcher(name);
+    if(!dispatchers.find(x=>x.name===d.name)) dispatchers.push(d);
     dispatchers.sort((a,b)=>a.name.localeCompare(b.name));
     inp.value='';
     await selectDispatcher(d.name);
@@ -533,10 +666,8 @@ function openHandoff(){
 function closeHandoff(){document.getElementById('handoff-overlay').classList.add('hidden');}
 
 async function handoffTo(name){
-  try{
-    await api('/api/shifts','POST',{dispatcher_name:currentDispatcher,action:'handoff',note:'Handing off to '+name});
-    await api('/api/shifts','POST',{dispatcher_name:name,action:'start'});
-  }catch(e){}
+  await DAL.logShift(currentDispatcher,'handoff','Handing off to '+name);
+  await DAL.logShift(name,'start','');
   currentDispatcher=name;
   sessionStorage.setItem('fpi_dispatcher',name);
   document.getElementById('dispatcher-name-hd').textContent=name;
@@ -549,8 +680,9 @@ async function addAndHandoff(){
   const name=inp.value.trim();
   if(!name) return;
   try{
-    const d=await api('/api/dispatchers','POST',{name});
-    dispatchers.push(d);dispatchers.sort((a,b)=>a.name.localeCompare(b.name));
+    const d=await DAL.addDispatcher(name);
+    if(!dispatchers.find(x=>x.name===d.name)) dispatchers.push(d);
+    dispatchers.sort((a,b)=>a.name.localeCompare(b.name));
     inp.value='';
     await handoffTo(d.name);
   }catch(e){showN('Error adding dispatcher.','err');}
@@ -629,9 +761,18 @@ async function submitEntry(){
   };
 
   try{
-    const entry=await api('/api/entries','POST',payload);
+    const entry=await DAL.createEntry(payload);
     entry.ts=new Date(entry.ts);
     entries.unshift(entry);
+
+    // In offline mode, fire webhook client-side
+    if(offlineMode){
+      const cfg=appSettings;
+      if(isNcns&&cfg.alert_ncns!=='false') await DAL.fireWebhookOffline('NO CALL / NO SHOW','ncns',entry);
+      else if(entry.priority==='critical'&&cfg.alert_critical!=='false') await DAL.fireWebhookOffline('CRITICAL INCIDENT','critical',entry);
+      else if(entry.priority==='high'&&cfg.alert_high!=='false') await DAL.fireWebhookOffline('HIGH PRIORITY','high',entry);
+      else if(entry.caller_type==='client'&&cfg.alert_client==='true') await DAL.fireWebhookOffline('CLIENT CALL','client',entry);
+    }
 
     if(isNcns) showN('NCNS logged — '+(entry.guard_name||'Unknown officer')+(entry.location?' @ '+entry.location:''),'ncns');
     else if(entry.priority==='critical') showN('CRITICAL — '+entry.category+(entry.guard_name?' | '+entry.guard_name:''),'critical');
@@ -640,7 +781,6 @@ async function submitEntry(){
     else if(entry.is_incident) showN('Incident opened: '+(entry.guard_name||entry.caller_type)+' — '+entry.category,'info');
     else showN('Entry logged.','ok',3000);
 
-    // Reset
     const prevCT=fm.callerType;
     fm={callerType:prevCT,category:null,priority:'medium',guardName:'',unitId:'',location:'',notes:'',trackInc:false};
     ['gname','gunit','gloc','cname','cloc2','notes'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
@@ -648,7 +788,7 @@ async function submitEntry(){
     document.getElementById('track-toggle').classList.remove('on');
     rAll();
   }catch(e){
-    showN('Failed to save entry. Check connection.','err');
+    showN('Failed to save entry: '+e.message,'err');
   }finally{
     btn.disabled=false;btn.textContent='LOG ENTRY';
   }
@@ -656,21 +796,25 @@ async function submitEntry(){
 
 async function updStatus(id,status,isIncident){
   try{
-    const body={alertRecipients:appSettings.alert_recipients||''};
-    if(status!==undefined) body.status=status;
-    if(isIncident!==undefined) body.is_incident=isIncident;
-    const updated=await api('/api/entries/'+id,'PATCH',body);
+    const updates={};
+    if(status!==undefined) updates.status=status;
+    if(isIncident!==undefined) updates.is_incident=isIncident;
+    if(!offlineMode) updates.alertRecipients=appSettings.alert_recipients||'';
+    const updated=await DAL.updateEntry(id,updates);
     updated.ts=new Date(updated.ts);
     const idx=entries.findIndex(e=>e.id===id);
     if(idx>-1) entries[idx]=updated;
-    if(status==='followup') showN('Follow-up needed: '+(updated.guard_name||'Officer')+' — '+updated.category,'followup');
+    if(status==='followup'){
+      showN('Follow-up needed: '+(updated.guard_name||'Officer')+' — '+updated.category,'followup');
+      if(offlineMode&&appSettings.alert_followup!=='false') await DAL.fireWebhookOffline('FOLLOW-UP REQUIRED','followup',updated);
+    }
     rAll();
   }catch(e){showN('Failed to update status.','err');}
 }
 
 async function promoteToIncident(id){
   try{
-    const updated=await api('/api/entries/'+id,'PATCH',{is_incident:true});
+    const updated=await DAL.updateEntry(id,{is_incident:true,status:'new'});
     updated.ts=new Date(updated.ts);
     const idx=entries.findIndex(e=>e.id===id);
     if(idx>-1) entries[idx]=updated;
@@ -685,7 +829,7 @@ function openSettings(){
   document.getElementById('s-emails').value=appSettings.alert_recipients||'';
   ['alert_critical','alert_high','alert_followup','alert_ncns','alert_client'].forEach(k=>{
     const t=document.getElementById('t-'+k);
-    if(t) t.classList.toggle('on',appSettings[k]==='true');
+    if(t) t.classList.toggle('on',appSettings[k]!=='false');
   });
   renderDpManageList();
   document.getElementById('tresult').textContent='';
@@ -693,7 +837,6 @@ function openSettings(){
 }
 
 function closeSettings(){document.getElementById('settings-overlay').classList.add('hidden');}
-
 function toggleS(btn){btn.classList.toggle('on');}
 
 async function saveSettings(){
@@ -705,7 +848,7 @@ async function saveSettings(){
     updates[k]=String(document.getElementById('t-'+k).classList.contains('on'));
   });
   try{
-    await api('/api/settings','POST',updates);
+    await DAL.saveSettings(updates);
     Object.assign(appSettings,updates);
     updateDot();closeSettings();showN('Settings saved.','ok',3000);
   }catch(e){showN('Failed to save settings.','err');}
@@ -715,7 +858,7 @@ async function addDispatcherFromSettings(){
   const inp=document.getElementById('dp-manage-input');
   const name=inp.value.trim();if(!name)return;
   try{
-    const d=await api('/api/dispatchers','POST',{name});
+    const d=await DAL.addDispatcher(name);
     if(!dispatchers.find(x=>x.name===d.name)) dispatchers.push(d);
     dispatchers.sort((a,b)=>a.name.localeCompare(b.name));
     inp.value='';renderDpManageList();
@@ -725,7 +868,7 @@ async function addDispatcherFromSettings(){
 async function removeDispatcher(name){
   if(!confirm('Remove '+name+' from the roster?')) return;
   try{
-    await api('/api/dispatchers','DELETE',{name});
+    await DAL.removeDispatcher(name);
     dispatchers=dispatchers.filter(d=>d.name!==name);
     renderDpManageList();
   }catch(e){showN('Error removing dispatcher.','err');}
