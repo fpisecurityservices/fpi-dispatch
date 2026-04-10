@@ -1,16 +1,24 @@
 const { sql } = require('@vercel/postgres');
 
 async function fireWebhook(alertType, level, entry, recipients) {
-  let url = process.env.N8N_WEBHOOK_URL;
-  // Fall back to DB-stored webhook URL if env var not set
-  if (!url) {
-    try {
-      const { rows } = await sql`SELECT value FROM app_settings WHERE key = 'webhook_url'`;
-      url = rows[0]?.value;
-    } catch(e) {}
-  }
+  // Always check DB first — this is what the user configures in the app Settings panel
+  let url = null;
+  try {
+    const { rows } = await sql`SELECT value FROM app_settings WHERE key = 'webhook_url'`;
+    url = rows[0]?.value;
+  } catch(e) {}
+  // Fall back to env var if DB has nothing
+  if (!url) url = process.env.N8N_WEBHOOK_URL;
   if (!url) return;
-  const to = recipients || process.env.ALERT_RECIPIENTS || '';
+
+  // Get recipients from DB if not passed in
+  let to = recipients;
+  if (!to) {
+    try {
+      const { rows } = await sql`SELECT value FROM app_settings WHERE key = 'alert_recipients'`;
+      to = rows[0]?.value || process.env.ALERT_RECIPIENTS || '';
+    } catch(e) { to = process.env.ALERT_RECIPIENTS || ''; }
+  }
   try {
     await fetch(url, {
       method: 'POST',
