@@ -545,16 +545,17 @@ const DAL = {
   }
 };
 
-const CATS=['Incident Report','Patrol Check-in','Disturbance','Trespassing',
-  'Medical','Gate / Access','Client Complaint','Suspicious Person','Vehicle / Accident','Other'];
+const CATS=['Incident Report','Patrol Check-in','No Call / No Show','Late to Post',
+  'Disturbance','Trespassing','Medical','Gate / Access','Client Complaint',
+  'Suspicious Person','Vehicle / Accident','Other'];
 const PRIS=['low','medium','high','critical'];
 const PLAB={low:'Low',medium:'Med',high:'High',critical:'CRITICAL'};
 const CLAB={public:'Public',guard:'Guard',client:'Client'};
 const SLABEL={new:'New',responding:'Responding',followup:'Follow-up',closed:'Closed'};
 const QUICK={
   checkin:{ct:'guard',cat:'Patrol Check-in',pri:'low',trackInc:false},
-  ncns:{ct:'guard',cat:'Patrol Check-in',pri:'high',trackInc:true},
-  late:{ct:'guard',cat:'Patrol Check-in',pri:'medium',trackInc:false},
+  ncns:{ct:'guard',cat:'No Call / No Show',pri:'high',trackInc:true},
+  late:{ct:'guard',cat:'Late to Post',pri:'medium',trackInc:false},
   abandoned:{ct:'guard',cat:'Incident Report',pri:'high',trackInc:true},
   scheduling:{ct:'guard',cat:'Other',pri:'medium',trackInc:false}
 };
@@ -815,7 +816,7 @@ async function submitEntry(){
   const btn=document.getElementById('log-btn');
   btn.disabled=true;btn.textContent='Logging...';
 
-  const isNcns=fm.trackInc&&fm.category==='Patrol Check-in'&&fm.priority==='high';
+  const isNcns=fm.trackInc&&fm.category==='No Call / No Show';
   const payload={
     caller_type:fm.callerType,
     guard_name:fm.guardName,unit_id:fm.unitId,location:fm.location,
