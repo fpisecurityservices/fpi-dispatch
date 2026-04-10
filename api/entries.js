@@ -19,6 +19,22 @@ async function fireWebhook(alertType, level, entry, recipients) {
       to = rows[0]?.value || process.env.ALERT_RECIPIENTS || '';
     } catch(e) { to = process.env.ALERT_RECIPIENTS || ''; }
   }
+
+  const ts = new Date(entry.ts).toLocaleString('en-US');
+  const body = [
+    `ALERT:      ${alertType}`,
+    `TIME:       ${ts}`,
+    `DISPATCHER: ${entry.dispatcher_name || 'Dispatch'}`,
+    `CALLER:     ${entry.caller_type}`,
+    `GUARD/NAME: ${entry.guard_name || ''}`,
+    `UNIT:       ${entry.unit_id || ''}`,
+    `LOCATION:   ${entry.location || ''}`,
+    `CATEGORY:   ${entry.category}`,
+    `PRIORITY:   ${entry.priority}`,
+    `NOTES:      ${entry.notes || ''}`,
+    ``,
+    `Entry #${entry.id} — FPI Dispatch`
+  ].join('\n');
   try {
     await fetch(url, {
       method: 'POST',
@@ -35,7 +51,8 @@ async function fireWebhook(alertType, level, entry, recipients) {
         timestamp: new Date(entry.ts).toLocaleString('en-US'),
         entryId: entry.id,
         dispatcher: entry.dispatcher_name || 'Dispatch',
-        recipients: to
+        recipients: to,
+        emailBody: body
       })
     });
   } catch (e) {
