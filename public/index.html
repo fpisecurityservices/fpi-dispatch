@@ -244,6 +244,67 @@ textarea.fi{resize:none;height:58px;}
 #poll-dot{width:6px;height:6px;border-radius:50%;background:var(--green-bd);display:inline-block;margin-left:6px;transition:background 0.3s;}
 #poll-dot.syncing{background:var(--amber-bd);}
 
+/* MOBILE TAB NAV */
+#mobile-tabs{display:none;position:fixed;bottom:0;left:0;right:0;z-index:700;background:var(--surface);border-top:1px solid var(--border);padding:6px 0 env(safe-area-inset-bottom,6px);}
+.mob-tab{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;padding:6px 4px;border:none;background:none;color:var(--text3);font-size:10px;font-weight:600;cursor:pointer;font-family:var(--font);letter-spacing:0.04em;}
+.mob-tab.act{color:var(--navy);}
+.mob-tab-icon{font-size:18px;line-height:1;}
+.mob-tab-row{display:flex;width:100%;}
+
+/* RESPONSIVE */
+@media(max-width:700px){
+  #app-header{padding:0 12px;height:46px;}
+  .hd-clock{font-size:15px;}
+  .hd-brand-sub{display:none;}
+  #stats-bar{display:none;}
+  .hd-dispatcher{display:none;}
+  #mode-badge{display:none;}
+  .hd-btn{padding:4px 9px;font-size:11px;}
+
+  #app-body{
+    grid-template-columns:1fr;
+    grid-template-rows:1fr;
+    height:calc(100vh - 46px - 58px);
+    overflow:hidden;
+  }
+  #entry-col{
+    border-right:none;
+    border-bottom:1px solid var(--border);
+    height:100%;
+    overflow-y:auto;
+    display:none;
+  }
+  #entry-col.mob-active{display:flex;}
+  #right-col{
+    height:100%;
+    display:none;
+    overflow:hidden;
+  }
+  #right-col.mob-active{display:flex;}
+  #incidents-panel{max-height:55%;}
+  #log-panel{flex:1;overflow-y:auto;}
+
+  #mobile-tabs{display:block;}
+
+  .qa-btn{padding:12px 6px;font-size:13px;}
+  .qa-checkin{padding:14px 6px;font-size:14px;}
+  .cbtn{padding:12px 6px;font-size:14px;}
+  .catb{padding:10px 6px;font-size:13px;}
+  .pbtn{padding:10px 4px;font-size:12px;}
+  .log-btn{padding:14px;font-size:14px;}
+  .fi{padding:10px 12px;font-size:14px;}
+  textarea.fi{height:72px;}
+  .icard{padding:12px 14px;}
+  .igname{font-size:15px;}
+  .abtn{padding:8px 12px;font-size:12px;}
+  .ftabs{flex-wrap:wrap;}
+  .datetabs{flex-wrap:wrap;}
+  .search-box{max-width:100%;width:100%;}
+  .log-toolbar{gap:6px;}
+  .modal{padding:20px;width:95vw;}
+  .dp-btn{padding:14px;}
+  .le{gap:8px;padding:10px 0;}
+}
 ::-webkit-scrollbar{width:5px;}
 ::-webkit-scrollbar-track{background:transparent;}
 ::-webkit-scrollbar-thumb{background:var(--gray-bd);border-radius:3px;}
@@ -321,8 +382,20 @@ textarea.fi{resize:none;height:58px;}
   </div>
 </div>
 
-<!-- NOTIFICATIONS -->
-<div id="notif-bar"></div>
+<!-- MOBILE TAB NAV -->
+<div id="mobile-tabs">
+  <div class="mob-tab-row">
+    <button class="mob-tab act" id="mob-tab-log" onclick="setMobTab('log')">
+      <span class="mob-tab-icon">&#9998;</span>LOG
+    </button>
+    <button class="mob-tab" id="mob-tab-incidents" onclick="setMobTab('incidents')">
+      <span class="mob-tab-icon">&#9888;</span>INCIDENTS
+    </button>
+    <button class="mob-tab" id="mob-tab-activity" onclick="setMobTab('activity')">
+      <span class="mob-tab-icon">&#9776;</span>ACTIVITY
+    </button>
+  </div>
+</div>
 
 <!-- HEADER -->
 <div id="app-header">
@@ -1049,6 +1122,11 @@ function rStats(){
     (active?`<span class="schip schip-a">${active} active</span>`:'')+
     (fu?`<span class="schip schip-f">${fu} follow-up</span>`:'')+
     (ncns?`<span class="schip schip-f">${ncns} NCNS</span>`:'');
+  // Update mobile incidents tab badge
+  const incTab=document.getElementById('mob-tab-incidents');
+  if(incTab){
+    incTab.innerHTML=`<span class="mob-tab-icon">&#9888;</span>INCIDENTS${active?` (${active})`:''}`;
+  }
 }
 
 function rIncidents(){
@@ -1163,7 +1241,47 @@ document.getElementById('notes').addEventListener('keydown',function(e){
   document.getElementById(id).addEventListener('click',function(e){if(e.target===this)this.classList.add('hidden');});
 });
 
+/* ---- MOBILE TABS ---- */
+let mobTab='log';
+function setMobTab(tab){
+  mobTab=tab;
+  const entryCol=document.getElementById('entry-col');
+  const rightCol=document.getElementById('right-col');
+  const incPanel=document.getElementById('incidents-panel');
+  const logPanel=document.getElementById('log-panel');
+
+  ['log','incidents','activity'].forEach(t=>{
+    document.getElementById('mob-tab-'+t).classList.toggle('act',t===tab);
+  });
+
+  if(tab==='log'){
+    entryCol.classList.add('mob-active');
+    rightCol.classList.remove('mob-active');
+  } else {
+    entryCol.classList.remove('mob-active');
+    rightCol.classList.add('mob-active');
+    // Show/hide panels within right col
+    if(tab==='incidents'){
+      incPanel.style.display='block';
+      incPanel.style.maxHeight='100%';
+      logPanel.style.display='none';
+    } else {
+      incPanel.style.display='none';
+      logPanel.style.display='block';
+    }
+  }
+}
+
+// Set initial mobile state
+function initMobile(){
+  if(window.innerWidth<=700){
+    document.getElementById('entry-col').classList.add('mob-active');
+    document.getElementById('right-col').classList.remove('mob-active');
+  }
+}
+
 initApp();
+initMobile();
 </script>
 </body>
 </html>
