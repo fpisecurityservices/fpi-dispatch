@@ -653,23 +653,11 @@ async function api(path,method='GET',body){
 }
 
 /* ---- INIT ---- */
-async function detectMode(){
-  try{
-    const ctrl=new AbortController();
-    const t=setTimeout(()=>ctrl.abort(),3000);
-    const r=await fetch('/api/dispatchers',{signal:ctrl.signal});
-    clearTimeout(t);
-    offlineMode=!r.ok;
-  }catch(e){ offlineMode=true; }
-}
-
 function setModeBadge(){
   const el=document.getElementById('mode-badge');
-  if(offlineMode){
-    el.textContent='OFFLINE'; el.className='mode-badge offline';
-  } else {
-    el.textContent='LIVE'; el.className='mode-badge live';
-  }
+  if(!el) return;
+  if(offlineMode){ el.textContent='OFFLINE'; el.className='mode-badge offline'; }
+  else{ el.textContent='LIVE'; el.className='mode-badge live'; }
 }
 
 async function initApp(){
@@ -677,18 +665,22 @@ async function initApp(){
   setInterval(updateClock,1000);
   rCats();rPris();
 
-  await detectMode();
+  // Single combined startup fetch — detect mode AND get dispatchers in one call
+  try{
+    const ctrl=new AbortController();
+    const t=setTimeout(()=>ctrl.abort(),4000);
+    const r=await fetch('/api/dispatchers',{signal:ctrl.signal});
+    clearTimeout(t);
+    if(r.ok){
+      offlineMode=false;
+      dispatchers=await r.json();
+    } else { offlineMode=true; dispatchers=LS.getDispatchers(); }
+  }catch(e){ offlineMode=true; dispatchers=LS.getDispatchers(); }
+
   setModeBadge();
 
-  try{
-    [dispatchers,appSettings]=await Promise.all([
-      DAL.getDispatchers(),
-      DAL.getSettings()
-    ]);
-  }catch(e){
-    dispatchers=[];appSettings={};
-  }
-
+  // Load settings in parallel (don't block on failure)
+  try{ appSettings=await DAL.getSettings(); }catch(e){ appSettings=LS.getSettings(); }
   updateDot();
 
   if(!currentDispatcher){
@@ -715,20 +707,33 @@ async function loadEntries(){
 
 function startPolling(){
   if(pollTimer) clearInterval(pollTimer);
-  pollTimer=setInterval(loadEntries,30000);
+  // Poll every 60s instead of 30s, and only when tab is visible
+  pollTimer=setInterval(()=>{
+    if(!document.hidden) loadEntries();
+  },60000);
 }
 
+// Pause polling when tab hidden, resume when visible
+document.addEventListener('visibilitychange',()=>{
+  if(!document.hidden&&currentDispatcher) loadEntries();
+});
+
 function setPollDot(syncing){
-  document.getElementById('poll-dot').className=syncing?'syncing':'';
+  const el=document.getElementById('poll-dot');
+  if(el) el.className=syncing?'syncing':'';
 }
 
 /* ---- DISPATCHER ---- */
 function renderDispatcherModal(containerId,onClickFn){
-  document.getElementById(containerId).innerHTML=dispatchers.map(d=>
-    `<button class="dp-btn" onclick="${onClickFn}('${esc(d.name)}')">
-      ${esc(d.name)}
-    </button>`
-  ).join('')||(dispatchers.length===0?'<div style="color:var(--text3);font-size:13px;padding:8px 0;">No dispatchers yet — add one below.</div>':'');
+  const el=document.getElementById(containerId);
+  if(!el) return;
+  if(!dispatchers||dispatchers.length===0){
+    el.innerHTML='<div style="color:var(--text3);font-size:13px;padding:8px 0;">No dispatchers yet — add one below.</div>';
+    return;
+  }
+  el.innerHTML=dispatchers.map(d=>
+    `<button class="dp-btn" onclick="${onClickFn}('${esc(d.name)}')">${esc(d.name)}</button>`
+  ).join('');
 }
 
 async function selectDispatcher(name){
@@ -755,7 +760,8 @@ async function addAndSelectDispatcher(){
   }catch(e){showN('Error adding dispatcher.','err');}
 }
 
-function openHandoff(){
+async function openHandoff(){
+  try{ dispatchers=await DAL.getDispatchers(); }catch(e){}
   renderDispatcherModal('handoff-list','handoffTo');
   document.getElementById('handoff-overlay').classList.remove('hidden');
 }
