@@ -412,6 +412,7 @@ textarea.fi{resize:none;height:58px;}
       <span id="poll-dot" title="Live sync"></span>
     </div>
     <span id="mode-badge" class="mode-badge"></span>
+    <button class="hd-btn" onclick="loadEntries()" title="Refresh log">&#8635;</button>
     <button class="hd-btn" onclick="exportCSV()">Export</button>
     <button class="hd-btn" id="settings-btn" onclick="openSettings()"><span id="wdot" class="wdot none"></span>Settings</button>
   </div>
@@ -700,7 +701,11 @@ async function loadEntries(){
     entries=raw.map(e=>({...e,ts:new Date(e.ts)}));
     rAll();
   }catch(e){
-    showN('Failed to load entries.','err');
+    console.error('loadEntries failed:',e);
+    // Always render so UI doesn't stay stuck on "Loading..."
+    document.getElementById('llist').innerHTML=
+      `<div class="es">Could not load entries. <button onclick="loadEntries()" style="color:var(--navy);background:none;border:none;cursor:pointer;font-weight:600;text-decoration:underline;">Retry</button></div>`;
+    document.getElementById('ilist').innerHTML='<div class="es">Could not load incidents. <button onclick="loadEntries()" style="color:var(--navy);background:none;border:none;cursor:pointer;font-weight:600;text-decoration:underline;">Retry</button></div>';
   }
   setPollDot(false);
 }
