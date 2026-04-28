@@ -703,8 +703,14 @@ async function initApp(){
 async function loadEntries(){
   setPollDot(true);
   try{
-    const raw=await DAL.getEntries(Math.max(dateFilter,30));
+    const [raw, q] = await Promise.all([
+      DAL.getEntries(Math.max(dateFilter,30)),
+      offlineMode ? Promise.resolve(null) : DAL.getQueue(30,200).catch(()=>null)
+    ]);
+
     entries=raw.map(e=>({...e,ts:new Date(e.ts)}));
+    queueData = q || {needs_action:[],at_risk:[],unassigned:[],followup_due:[]};
+
     rAll();
   }catch(e){
     console.error('loadEntries failed:',e);
