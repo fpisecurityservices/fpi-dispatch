@@ -35,6 +35,15 @@ async function logEvent(entryId, eventType, dispatcherName, payload = {}) {
   `;
 }
 
+function resolveActor(bodyDispatcher, entryRow) {
+  return (
+    bodyDispatcher ||
+    entryRow?.owner_dispatcher_name ||
+    entryRow?.dispatcher_name ||
+    'Dispatch'
+  );
+}
+
 module.exports = async function handler(req, res) {
   const id = parseInt(req.query.id, 10);
   if (isNaN(id)) return res.status(400).json({ error: 'Invalid ID' });
@@ -63,12 +72,15 @@ module.exports = async function handler(req, res) {
 
       if (!rows?.length) return res.status(404).json({ error: 'Not found' });
 
-      await logEvent(id, 'assigned', actor, {
+      const entry = rows[0];
+      const eventActor = resolveActor(actor, entry);
+
+      await logEvent(id, 'assigned', eventActor, {
         owner_dispatcher_name: b.owner_dispatcher_name || null,
         workflow_state: b.workflow_state || null
       });
 
-      return res.status(200).json(rows[0]);
+      return res.status(200).json(entry);
     }
 
     // 2) Communication status update (+ optional note append)
@@ -87,12 +99,15 @@ module.exports = async function handler(req, res) {
 
       if (!rows?.length) return res.status(404).json({ error: 'Not found' });
 
-      await logEvent(id, 'comm_updated', actor, {
+      const entry = rows[0];
+      const eventActor = resolveActor(actor, entry);
+
+      await logEvent(id, 'comm_updated', eventActor, {
         comm_status: b.comm_status || 'internal',
         note: b.append_note || ''
       });
 
-      return res.status(200).json(rows[0]);
+      return res.status(200).json(entry);
     }
 
     // 3) Update due date / SLA state
@@ -108,12 +123,15 @@ module.exports = async function handler(req, res) {
 
       if (!rows?.length) return res.status(404).json({ error: 'Not found' });
 
-      await logEvent(id, 'due_updated', actor, {
+      const entry = rows[0];
+      const eventActor = resolveActor(actor, entry);
+
+      await logEvent(id, 'due_updated', eventActor, {
         next_action_due_at: b.next_action_due_at || null,
         sla_state: b.sla_state || null
       });
 
-      return res.status(200).json(rows[0]);
+      return res.status(200).json(entry);
     }
 
     // 4) Close incident
@@ -131,8 +149,11 @@ module.exports = async function handler(req, res) {
 
       if (!rows?.length) return res.status(404).json({ error: 'Not found' });
 
-      await logEvent(id, 'closed', actor, {});
-      return res.status(200).json(rows[0]);
+      const entry = rows[0];
+      const eventActor = resolveActor(actor, entry);
+
+      await logEvent(id, 'closed', eventActor, {});
+      return res.status(200).json(entry);
     }
 
     // Legacy compatibility path (existing behavior + last_action/event logging)
@@ -189,7 +210,9 @@ module.exports = async function handler(req, res) {
       }
     }
 
-    await logEvent(id, 'updated', actor, {
+    const eventActor = resolveActor(actor, entry);
+
+    await logEvent(id, 'updated', eventActor, {
       status: b.status,
       is_incident: b.is_incident
     });
