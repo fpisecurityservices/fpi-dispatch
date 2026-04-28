@@ -901,13 +901,27 @@ async function submitEntry(){
   btn.disabled=true;btn.textContent='Logging...';
 
   const isNcns=fm.trackInc&&fm.category==='No Call / No Show';
+  const workflowState=fm.trackInc?'new':'triaged';
+
   const payload={
     caller_type:fm.callerType,
-    guard_name:fm.guardName,unit_id:fm.unitId,location:fm.location,
-    category:fm.category,priority:fm.priority,notes:fm.notes,
+    guard_name:fm.guardName,
+    unit_id:fm.unitId,
+    location:fm.location,
+    category:fm.category,
+    priority:fm.priority,
+    notes:fm.notes,
     status:fm.trackInc?'new':null,
-    is_incident:fm.trackInc,is_ncns:isNcns,
+    is_incident:fm.trackInc,
+    is_ncns:isNcns,
     dispatcher_name:currentDispatcher,
+
+    // NEW FIELDS FOR ENHANCED BACKEND
+    owner_dispatcher_name:currentDispatcher,
+    workflow_state:workflowState,
+    comm_status:'internal',
+    source_template:activeQuickLog||null,
+
     alertRecipients:appSettings.alert_recipients||''
   };
 
@@ -950,23 +964,53 @@ async function submitEntry(){
 
 async function updStatus(id,status,isIncident){
   try{
-    const updates={};
-    if(status!==undefined) updates.status=status;
-    if(isIncident!==undefined) updates.is_incident=isIncident;
+    let updates={
+      dispatcher_name:currentDispatcher
+    };
+
+    // Use new action mode when possible
+    if(status==='closed'){
+      updates.action='close';
+    }else{
+      // Legacy-compatible update (still logs events with dispatcher now)
+      if(status!==undefined) updates.status=status;
+      if(isIncident!==undefined) updates.is_incident=isIncident;
+    }
+
     if(!offlineMode) updates.alertRecipients=appSettings.alert_recipients||'';
+
     const updated=await DAL.updateEntry(id,updates);
     updated.ts=new Date(updated.ts);
     const idx=entries.findIndex(e=>e.id===id);
     if(idx>-1) entries[idx]=updated;
+
     if(status==='followup'){
       showN('Follow-up needed: '+(updated.guard_name||'Officer')+' — '+updated.category,'followup');
       if(offlineMode&&appSettings.alert_followup!=='false') await DAL.fireWebhookOffline('FOLLOW-UP REQUIRED','followup',updated);
     }
+
     rAll();
-  }catch(e){showN('Failed to update status.','err');}
+  }catch(e){
+    showN('Failed to update status.','err');
+  }
 }
 
 async function promoteToIncident(id){
+  try{
+    const updated=await DAL.updateEntry(id,{
+      is_incident:true,
+      status:'new',
+      dispatcher_name:currentDispatcher
+    });
+    updated.ts=new Date(updated.ts);
+    const idx=entries.findIndex(e=>e.id===id);
+    if(idx>-1) entries[idx]=updated;
+    showN('Entry promoted to active incident.','info');
+    rAll();
+  }catch(e){
+    showN('Failed to promote entry.','err');
+  }
+}
   try{
     const updated=await DAL.updateEntry(id,{is_incident:true,status:'new'});
     updated.ts=new Date(updated.ts);
