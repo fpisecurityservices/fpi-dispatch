@@ -1195,6 +1195,26 @@ function rStats(){
     incTab.innerHTML=`<span class="mob-tab-icon">&#9888;</span>INCIDENTS${active?` (${active})`:''}`;
   }
 }
+  function rQueuePills(){
+  const el=document.getElementById('queue-pills');
+  if(!el) return;
+
+  const na=(queueData?.needs_action||[]).length;
+  const risk=(queueData?.at_risk||[]).length;
+  const un=(queueData?.unassigned||[]).length;
+  const fu=(queueData?.followup_due||[]).length;
+
+  const pill=(label,count,bg,bd,color)=>
+    `<span style="padding:3px 9px;border-radius:20px;border:1px solid ${bd};background:${bg};color:${color};font-size:11px;font-weight:600;">
+      ${label}: ${count}
+    </span>`;
+
+  el.innerHTML =
+    pill('Needs Action',na,'#eef4fd','#90b8f0','#123e80') +
+    pill('At Risk',risk,'#fef0f0','#f0a0a0','#8a1f1f') +
+    pill('Unassigned',un,'#fff8f0','#f0c060','#92560a') +
+    pill('Follow-up Due',fu,'#fef3e0','#f0c060','#92560a');
+}
 
 function rIncidents(){
   const inc=entries.filter(e=>e.is_incident);
