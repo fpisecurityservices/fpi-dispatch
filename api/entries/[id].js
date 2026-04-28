@@ -52,6 +52,7 @@ module.exports = async function handler(req, res) {
     if (req.method !== 'PATCH') {
       return res.status(405).end();
     }
+    if (req.method !== 'PATCH') return res.status(405).end();
 
     const b = req.body || {};
     const action = b.action || 'legacy';
@@ -76,6 +77,7 @@ module.exports = async function handler(req, res) {
       const eventActor = resolveActor(actor, entry);
 
       await logEvent(id, 'assigned', eventActor, {
+      await logEvent(id, 'assigned', resolveActor(actor, entry), {
         owner_dispatcher_name: b.owner_dispatcher_name || null,
         workflow_state: b.workflow_state || null
       });
@@ -103,6 +105,7 @@ module.exports = async function handler(req, res) {
       const eventActor = resolveActor(actor, entry);
 
       await logEvent(id, 'comm_updated', eventActor, {
+      await logEvent(id, 'comm_updated', resolveActor(actor, entry), {
         comm_status: b.comm_status || 'internal',
         note: b.append_note || ''
       });
@@ -127,6 +130,7 @@ module.exports = async function handler(req, res) {
       const eventActor = resolveActor(actor, entry);
 
       await logEvent(id, 'due_updated', eventActor, {
+      await logEvent(id, 'due_updated', resolveActor(actor, entry), {
         next_action_due_at: b.next_action_due_at || null,
         sla_state: b.sla_state || null
       });
@@ -153,6 +157,7 @@ module.exports = async function handler(req, res) {
       const eventActor = resolveActor(actor, entry);
 
       await logEvent(id, 'closed', eventActor, {});
+      await logEvent(id, 'closed', resolveActor(actor, entry), {});
       return res.status(200).json(entry);
     }
 
@@ -169,6 +174,7 @@ module.exports = async function handler(req, res) {
         WHERE id = ${id}
         RETURNING *
       `);
+      ({ rows } = await sql`UPDATE entries SET status = ${status}, is_incident = ${is_incident}, workflow_state = COALESCE(${status}, workflow_state), last_action_at = NOW() WHERE id = ${id} RETURNING *`);
     } else if (status !== undefined) {
       ({ rows } = await sql`
         UPDATE entries
@@ -178,6 +184,7 @@ module.exports = async function handler(req, res) {
         WHERE id = ${id}
         RETURNING *
       `);
+      ({ rows } = await sql`UPDATE entries SET status = ${status}, workflow_state = COALESCE(${status}, workflow_state), last_action_at = NOW() WHERE id = ${id} RETURNING *`);
     } else if (is_incident !== undefined) {
       ({ rows } = await sql`
         UPDATE entries
@@ -188,6 +195,7 @@ module.exports = async function handler(req, res) {
         WHERE id = ${id}
         RETURNING *
       `);
+      ({ rows } = await sql`UPDATE entries SET is_incident = ${is_incident}, status = 'new', workflow_state = 'new', last_action_at = NOW() WHERE id = ${id} RETURNING *`);
     } else {
       return res.status(400).json({ error: 'Nothing to update' });
     }
@@ -207,12 +215,14 @@ module.exports = async function handler(req, res) {
           entry,
           b.alertRecipients || rec[0]?.value
         );
+        await fireWebhook('FOLLOW-UP REQUIRED', 'followup', entry, b.alertRecipients || rec[0]?.value);
       }
     }
 
     const eventActor = resolveActor(actor, entry);
 
     await logEvent(id, 'updated', eventActor, {
+    await logEvent(id, 'updated', resolveActor(actor, entry), {
       status: b.status,
       is_incident: b.is_incident
     });
