@@ -582,6 +582,10 @@ const DAL = {
     }
     return api(`/api/entries?days=${days}`);
   },
+    async getQueue(days=30,limit=200){
+    if(offlineMode) return null;
+    return api(`/api/queue?days=${days}&limit=${limit}`);
+  },
   async createEntry(payload){
     if(offlineMode){
       const entry={...payload,id:LS.nextId(),ts:new Date().toISOString()};
