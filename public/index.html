@@ -643,6 +643,7 @@ let fm={callerType:null,category:null,priority:'medium',guardName:'',unitId:'',l
 let entries=[];
 let dispatchers=[];
 let appSettings={};
+let queueData={needs_action:[],at_risk:[],unassigned:[],followup_due:[]};
 let currentDispatcher=sessionStorage.getItem('fpi_dispatcher')||'';
 let logFilter='all';
 let dateFilter=7;
