@@ -1069,9 +1069,10 @@ textarea.inp{resize:none;min-height:78px;line-height:1.45;}
         <h3>Team Contacts</h3>
         <p style="font-size:12px;color:var(--n500);margin-bottom:12px;">Who can be notified by routing rules.</p>
         <div id="contacts-list" style="display:flex;flex-direction:column;gap:6px;"></div>
-        <div class="add-row" style="margin-top:10px;">
-          <input class="inp" id="ct-name" placeholder="Name (e.g. Daniel R.)">
-          <input class="inp" id="ct-role" placeholder="Role (e.g. Ops Manager)">
+        <div class="add-row" style="margin-top:10px;flex-wrap:wrap;gap:6px;">
+          <input class="inp" id="ct-name" placeholder="Name (e.g. Daniel R.)" style="flex:1;min-width:130px;">
+          <input class="inp" id="ct-role" placeholder="Role (e.g. Ops Manager)" style="flex:1;min-width:130px;">
+          <input class="inp" id="ct-email" placeholder="Email address" style="flex:1.5;min-width:180px;">
           <button class="btn btn-primary" onclick="addContact()">Add</button>
         </div>
       </div>
