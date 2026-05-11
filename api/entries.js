@@ -148,16 +148,12 @@ export default async function handler(req, res) {
       let recipients = [];
       try {
         const { rows: ruleRows } = await sql`SELECT * FROM routing_rules`;
-        const rules = ruleRows.map(r => ({
-          when: `${r.when_key}=${r.when_value}`,
-          to:   r.to_recipients || [],
-        }));
         const probe = {
-          priority:   payload.priority,
-          category:   payload.category,
-          callerType: payload.caller_type,
+          priority:    payload.priority,
+          category:    payload.category,
+          caller_type: payload.caller_type,
         };
-        recipients = computeRoutes(probe, rules);
+        recipients = computeRoutes(probe, ruleRows);
 
         if (recipients.length > 0 && process.env.N8N_WEBHOOK_URL) {
           const { rows: contactRows } = await sql`SELECT * FROM contacts`;
