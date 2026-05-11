@@ -964,12 +964,14 @@ function renderContactsList(){
   refreshIcons();
 }
 function addContact(){
-  const name = document.getElementById('ct-name').value.trim();
-  const role = document.getElementById('ct-role').value.trim();
+  const name  = document.getElementById('ct-name').value.trim();
+  const role  = document.getElementById('ct-role').value.trim();
+  const email = document.getElementById('ct-email').value.trim();
   if(!name) return;
-  ST.contacts.push({name, role, email:name.toLowerCase().replace(/[^a-z]+/g,'.')+'@fpisecurity.com'});
+  ST.contacts.push({name, role, email});
   document.getElementById('ct-name').value='';
   document.getElementById('ct-role').value='';
+  document.getElementById('ct-email').value='';
   renderContactsList();
 }
 function removeContact(i){
