@@ -250,18 +250,12 @@ function renderDynFields(){
   } else if(t==='guard'){
     html = accDrop + `
       <div class="fld">
+        <div class="fld-label">Site</div>
+        <input class="inp" id="f-site" placeholder="Property\u2026" value="${esc(ST.fm.fields.site||'')}" oninput="updField('site',this.value)">
+      </div>
+      <div class="fld">
         <div class="fld-label">Officer</div>
         <input class="inp" id="f-guardName" placeholder="Officer name\u2026" value="${esc(ST.fm.fields.guardName||'')}" oninput="updField('guardName',this.value)">
-      </div>
-      <div class="fld-row">
-        <div class="fld">
-          <div class="fld-label">Unit / Post</div>
-          <input class="inp inp-mono" id="f-unit" placeholder="U-##" value="${esc(ST.fm.fields.unit||'')}" oninput="updField('unit',this.value)">
-        </div>
-        <div class="fld">
-          <div class="fld-label">Site</div>
-          <input class="inp" id="f-site" placeholder="Property\u2026" value="${esc(ST.fm.fields.site||'')}" oninput="updField('site',this.value)">
-        </div>
       </div>
       <div style="display:flex;gap:5px;flex-wrap:wrap;">
         ${QUICK_ACTIONS.map(q=>`<button type="button" class="chip ${ST.fm.category===q.cat?'sel':''}" onclick="applyQuick('${q.key}')">${q.label}</button>`).join('')}
@@ -359,14 +353,17 @@ function toggleTrack(){ ST.fm.track = !ST.fm.track; renderTrackRow(); }
 
 function applyQuick(key){
   const q = QUICK_ACTIONS.find(x=>x.key===key);
-  setTemplate(q.tpl);
-  setTimeout(()=>{
-    ST.fm.category = q.cat;
-    ST.fm.priority = q.pri;
-    ST.fm.track = q.track;
-    renderAll();
-    document.getElementById('f-guardName')?.focus();
-  },0);
+  // Preserve typed field values across quick action clicks
+  const savedFields = {...ST.fm.fields};
+  if(ST.template !== q.tpl){
+    setTemplate(q.tpl);
+  }
+  ST.fm.fields   = savedFields;
+  ST.fm.category = q.cat;
+  ST.fm.priority = q.pri;
+  ST.fm.track    = q.track;
+  renderAll();
+  document.getElementById('f-guardName')?.focus();
 }
 
 function resetForm(){
