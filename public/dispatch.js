@@ -78,6 +78,8 @@ const ST = {
   rules: [],
   contacts: [],
   dispatchers: [],
+  accounts: [],
+  selectedAccount: null,
   logFilter: 'all',
   dateFilter: 7,
   expanded: new Set(),
@@ -113,12 +115,13 @@ function hydrateShift(s){
 
 async function loadState(){
   try{
-    const [entries, incidents, shifts, dispatchers, settings] = await Promise.all([
+    const [entries, incidents, shifts, dispatchers, settings, accounts] = await Promise.all([
       fetch('/api/entries?limit=500').then(r=>r.json()),
       fetch('/api/incidents').then(r=>r.json()),
       fetch('/api/shifts').then(r=>r.json()),
       fetch('/api/dispatchers').then(r=>r.json()),
       fetch('/api/settings').then(r=>r.json()),
+      fetch('/api/accounts').then(r=>r.json()),
     ]);
     ST.entries     = (entries    ||[]).map(hydrateEntry);
     ST.incidents   = (incidents  ||[]).map(hydrateIncident);
@@ -126,6 +129,7 @@ async function loadState(){
     ST.dispatchers = dispatchers ||[];
     ST.rules       = settings.rules    ||[];
     ST.contacts    = settings.contacts ||[];
+    ST.accounts    = accounts          ||[];
     ST.dispatcher  = sessionStorage.getItem(SESSION_KEY)||null;
   }catch(e){
     toast('Failed to load data','danger','Check your connection and refresh.');
@@ -193,29 +197,61 @@ function renderCallerRow(){
   refreshIcons();
 }
 
+function renderAccountDropdown(){
+  if(!ST.accounts.length) return '';
+  const sel = ST.selectedAccount;
+  const opts = ST.accounts.map(a=>
+    `<option value="${a.id}" ${sel&&sel.id===a.id?'selected':''}>${esc(a.name)}${a.accountNumber?' ('+esc(a.accountNumber)+')':''}</option>`
+  ).join('');
+  const notesHtml = sel&&sel.notes
+    ? `<div style="font-size:11px;color:#64748b;margin-top:4px;padding:4px 6px;background:#f1f5f9;border-radius:4px;">&#128203; ${esc(sel.notes)}</div>`
+    : '';
+  return `
+    <div class="fld">
+      <div class="fld-label">Account</div>
+      <select class="inp" id="f-account-sel" onchange="selectAccount(this.value)" style="cursor:pointer;">
+        <option value="">-- Select account --</option>
+        ${opts}
+      </select>
+      ${notesHtml}
+    </div>
+  `;
+}
+
+function selectAccount(idStr){
+  if(!idStr){ ST.selectedAccount=null; renderDynFields(); return; }
+  const acc = ST.accounts.find(a=>a.id===parseInt(idStr));
+  ST.selectedAccount = acc||null;
+  if(acc && acc.site){
+    ST.fm.fields.site    = acc.site;
+    ST.fm.fields.account = acc.name;
+  }
+  renderDynFields();
+}
+
 function renderDynFields(){
   const t = ST.template;
+  const accDrop = renderAccountDropdown();
   let html = '';
   if(t==='phone'){
-    html = `
+    html = accDrop + `
       <div class="fld">
         <div class="fld-label">Caller Info</div>
-        <input class="inp" id="f-callerName" placeholder="Caller name…" value="${esc(ST.fm.fields.callerName||'')}" oninput="updField('callerName',this.value)">
+        <input class="inp" id="f-callerName" placeholder="Caller name\u2026" value="${esc(ST.fm.fields.callerName||'')}" oninput="updField('callerName',this.value)">
         <div class="fld-row" style="margin-top:6px;">
           <input class="inp inp-mono" id="f-callback" placeholder="Callback #" value="${esc(ST.fm.fields.callback||'')}" oninput="updField('callback',this.value)">
-          <input class="inp" id="f-account" placeholder="Acct / Property" value="${esc(ST.fm.fields.account||'')}" oninput="updField('account',this.value)">
         </div>
       </div>
       <div class="fld">
         <div class="fld-label">Site / Property</div>
-        <input class="inp" id="f-site" placeholder="Property or location…" value="${esc(ST.fm.fields.site||'')}" oninput="updField('site',this.value)">
+        <input class="inp" id="f-site" placeholder="Property or location\u2026" value="${esc(ST.fm.fields.site||'')}" oninput="updField('site',this.value)">
       </div>
     `;
   } else if(t==='guard'){
-    html = `
+    html = accDrop + `
       <div class="fld">
         <div class="fld-label">Officer</div>
-        <input class="inp" id="f-guardName" placeholder="Officer name…" value="${esc(ST.fm.fields.guardName||'')}" oninput="updField('guardName',this.value)">
+        <input class="inp" id="f-guardName" placeholder="Officer name\u2026" value="${esc(ST.fm.fields.guardName||'')}" oninput="updField('guardName',this.value)">
       </div>
       <div class="fld-row">
         <div class="fld">
@@ -224,7 +260,7 @@ function renderDynFields(){
         </div>
         <div class="fld">
           <div class="fld-label">Site</div>
-          <input class="inp" id="f-site" placeholder="Property…" value="${esc(ST.fm.fields.site||'')}" oninput="updField('site',this.value)">
+          <input class="inp" id="f-site" placeholder="Property\u2026" value="${esc(ST.fm.fields.site||'')}" oninput="updField('site',this.value)">
         </div>
       </div>
       <div style="display:flex;gap:5px;flex-wrap:wrap;">
@@ -232,10 +268,10 @@ function renderDynFields(){
       </div>
     `;
   } else if(t==='system'){
-    html = `
+    html = accDrop + `
       <div class="fld">
         <div class="fld-label">Reference (optional)</div>
-        <input class="inp" id="f-ref" placeholder="Related site, account, or unit…" value="${esc(ST.fm.fields.site||'')}" oninput="updField('site',this.value)">
+        <input class="inp" id="f-ref" placeholder="Related site, account, or unit\u2026" value="${esc(ST.fm.fields.site||'')}" oninput="updField('site',this.value)">
       </div>
     `;
   }
@@ -334,6 +370,7 @@ function applyQuick(key){
 }
 
 function resetForm(){
+  ST.selectedAccount = null;
   ST.fm = {callerType:(CALLER_TYPES[ST.template][0]||{}).key, category:null, priority:'medium', notes:'', fields:{}, track:false};
   document.getElementById('notes').value='';
   renderAll();
@@ -358,6 +395,7 @@ async function submitEntry(){
       notes:       ST.fm.notes,
       dispatcher:  ST.dispatcher,
       is_incident: ST.fm.track,
+      account_id:  ST.selectedAccount ? ST.selectedAccount.id : null,
     });
     hydrateEntry(result.entry);
     ST.entries.unshift(result.entry);
@@ -853,6 +891,7 @@ async function confirmHandoff(){
 function openSettings(){
   renderRulesList();
   renderContactsList();
+  renderAccountsList();
   renderRosterList();
   document.getElementById('m-settings').classList.remove('hidden');
 }
@@ -977,6 +1016,60 @@ function addContact(){
 function removeContact(i){
   ST.contacts.splice(i,1);
   renderContactsList();
+}
+
+/* -------- ACCOUNTS SETTINGS -------- */
+function renderAccountsList(){
+  const el = document.getElementById('accounts-list');
+  if(!el) return;
+  el.innerHTML = ST.accounts.map(a=>`
+    <div class="contact-row" style="align-items:flex-start;">
+      <div style="flex:1;min-width:0;">
+        <div class="contact-name">${esc(a.name)}${a.accountNumber?` <span style="font-weight:400;color:var(--n500);">#${esc(a.accountNumber)}</span>`:''}</div>
+        ${a.site?`<div class="contact-meta">${esc(a.site)}</div>`:''}
+        ${a.clientContact?`<div class="contact-meta">${esc(a.clientContact)}${a.clientPhone?' &middot; '+esc(a.clientPhone):''}</div>`:''}
+        ${a.notes?`<div style="font-size:11px;color:var(--n400);margin-top:2px;font-style:italic;">${esc(a.notes)}</div>`:''}
+      </div>
+      <button class="rule-x" onclick="removeAccount(${a.id})"><i data-lucide="trash-2"></i></button>
+    </div>
+  `).join('') || `<div style="color:var(--n500);font-size:12px;">No accounts yet. Add one below.</div>`;
+  refreshIcons();
+}
+async function addAccount(){
+  const name    = document.getElementById('ac-name').value.trim();
+  const number  = document.getElementById('ac-number').value.trim();
+  const site    = document.getElementById('ac-site').value.trim();
+  const contact = document.getElementById('ac-contact').value.trim();
+  const email   = document.getElementById('ac-email').value.trim();
+  const phone   = document.getElementById('ac-phone').value.trim();
+  const notes   = document.getElementById('ac-notes').value.trim();
+  if(!name){ toast('Account name is required','warn'); return; }
+  try{
+    const acc = await apiPost('/api/accounts',{
+      name, account_number:number, site,
+      client_contact:contact, client_email:email,
+      client_phone:phone, notes
+    });
+    ST.accounts.push(acc);
+    ST.accounts.sort((a,b)=>a.name.localeCompare(b.name));
+    ['ac-name','ac-number','ac-site','ac-contact','ac-email','ac-phone','ac-notes']
+      .forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
+    renderAccountsList();
+    toast('Account added','ok');
+  }catch(e){
+    toast('Failed to add account','danger',e.message);
+  }
+}
+async function removeAccount(id){
+  try{
+    await apiDelete(`/api/accounts/${id}`);
+    ST.accounts = ST.accounts.filter(a=>a.id!==id);
+    if(ST.selectedAccount && ST.selectedAccount.id===id) ST.selectedAccount=null;
+    renderAccountsList();
+    toast('Account removed','ok');
+  }catch(e){
+    toast('Failed to remove account','danger',e.message);
+  }
 }
 function renderRosterList(){
   const el = document.getElementById('roster-list');
