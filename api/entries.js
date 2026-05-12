@@ -60,6 +60,7 @@ export default async function handler(req, res) {
       notes:       body.notes       || '',
       dispatcher:  body.dispatcher,
       is_incident: body.is_incident ?? false,
+      account_id:  body.account_id  ?? null,
     };
 
     // Server-side validation
@@ -78,8 +79,8 @@ export default async function handler(req, res) {
       // 1. Insert entry (incident_id added after incident is created)
       const { rows: [entRow] } = await client.query(
         `INSERT INTO entries
-           (template, caller_type, fields, category, priority, notes, dispatcher, is_incident)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
+           (template, caller_type, fields, category, priority, notes, dispatcher, is_incident, account_id)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
          RETURNING *`,
         [
           payload.template,
@@ -90,6 +91,7 @@ export default async function handler(req, res) {
           payload.notes,
           payload.dispatcher,
           payload.is_incident,
+          payload.account_id,
         ]
       );
 
