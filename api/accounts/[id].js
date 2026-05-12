@@ -1,9 +1,18 @@
 // api/accounts/[id].js
-// PATCH  /api/accounts/:id   update account fields
-// DELETE /api/accounts/:id   remove account
-
 import { sql } from '@vercel/postgres';
-import { toAccount } from '../../lib/_db.js';
+
+function toAccount(row) {
+  return {
+    id:            row.id,
+    name:          row.name,
+    accountNumber: row.account_number || '',
+    site:          row.site           || '',
+    clientContact: row.client_contact || '',
+    clientEmail:   row.client_email   || '',
+    clientPhone:   row.client_phone   || '',
+    notes:         row.notes          || '',
+  };
+}
 
 export default async function handler(req, res) {
   const { id } = req.query;
