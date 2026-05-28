@@ -525,7 +525,37 @@ function renderBoard(){
     return;
   }
 
-  el.innerHTML = list.map(inc=>renderIncidentCard(inc)).join('');
+  // Action Required banner
+  const now = Date.now();
+  const unacked = list.filter(i=>i.status==='new' && Math.floor((now-i.openedAt.getTime())/60000)>2);
+  const overdueCallbacks = list.filter(i=>i.status==='callback' && Math.floor((now-i.openedAt.getTime())/60000)>45);
+  const bannerParts = [];
+  if(unacked.length) bannerParts.push(`${unacked.length} incident${unacked.length>1?'s':''} unacknowledged`);
+  if(overdueCallbacks.length) bannerParts.push(`${overdueCallbacks.length} callback${overdueCallbacks.length>1?'s':''} overdue`);
+  const bannerHtml = bannerParts.length
+    ? `<div class="action-banner"><i data-lucide="alert-circle" class="ic"></i> <strong>Action Required:</strong> ${bannerParts.join(' · ')}</div>`
+    : '';
+
+  // Swim lanes
+  const urgent      = list.filter(i=>i.priority==='critical'||i.priority==='high');
+  const needsAction = list.filter(i=>i.priority!=='critical'&&i.priority!=='high'&&['new','callback','update'].includes(i.status));
+  const monitoring  = list.filter(i=>i.priority!=='critical'&&i.priority!=='high'&&!['new','callback','update'].includes(i.status));
+
+  function lane(title, icon, items, cls){
+    if(!items.length) return '';
+    return `<div class="swim-lane ${cls}">
+      <div class="swim-head" onclick="this.parentElement.classList.toggle('collapsed')">
+        <span><i data-lucide="${icon}" class="ic"></i> ${title}</span>
+        <span class="swim-count">${items.length}</span>
+      </div>
+      <div class="swim-body">${items.map(inc=>renderIncidentCard(inc)).join('')}</div>
+    </div>`;
+  }
+
+  el.innerHTML = bannerHtml
+    + lane('Urgent', 'alert-octagon', urgent, 'lane-urgent')
+    + lane('Action Required', 'clock', needsAction, 'lane-action')
+    + lane('Monitoring', 'eye', monitoring, 'lane-monitor');
   refreshIcons();
 }
 
@@ -544,8 +574,10 @@ function renderIncidentCard(inc){
   const ctIcon = ct?.icon || 'user';
 
   const isAdding = ST.addingUpdateTo === inc.id;
+  const overdueCritical = elapsedMin > 10 && inc.status !== 'resolved';
+  const needsActionBadge = inc.status === 'new' && elapsedMin > 2;
 
-  return `<div class="inc pri-${inc.priority}">
+  return `<div class="inc pri-${inc.priority}${overdueCritical?' inc-overdue-alert':''}" data-inc-id="${inc.id}">
     <div class="inc-top" onclick="toggleExpand(${inc.id})">
       <div class="inc-id">${fmtIncId(inc.id)}</div>
       <div class="inc-main">
@@ -553,6 +585,7 @@ function renderIncidentCard(inc){
           <span class="inc-title">${esc(inc.title)}</span>
           <span class="pri-pill ${inc.priority}"><span class="dot"></span>${PRIORITIES.find(p=>p.key===inc.priority).label}</span>
           <span class="st ${STATUS[inc.status].color}"><span class="dot"></span>${STATUS[inc.status].label}</span>
+          ${needsActionBadge?`<span class="needs-action-badge"><i data-lucide="bell-ring" class="ic" style="width:10px;height:10px;"></i> Needs Action</span>`:''}
         </div>
         <div class="inc-line2">
           <span class="inc-meta-item"><i data-lucide="${ctIcon}"></i>${esc(inc.category)}</span>
@@ -700,7 +733,7 @@ function renderLog(){
             ${who?`<span class="log-who">${esc(who)}</span>`:''}
             <span class="log-cat">${esc(e.category)}</span>
             <span class="pri-pill ${e.priority}"><span class="dot"></span>${PRIORITIES.find(p=>p.key===e.priority).label}</span>
-            ${e.incident_id?`<span style="font-family:var(--f-m);font-size:10px;color:var(--b500);font-weight:600;">${fmtIncId(e.incident_id)}</span>`:''}
+            ${e.incident_id?`<span class="log-inc-link" onclick="jumpToIncident(${e.incident_id})">${fmtIncId(e.incident_id)}</span>`:''}
             ${e.is_incident?`<span class="b b-system" style="background:var(--b50);color:var(--b500);">Open Incident</span>`:''}
           </div>
           ${(e.fields?.site || e.fields?.unit || e.fields?.callback)?`
@@ -1181,6 +1214,15 @@ function fmtElapsed(d){
 
 function refreshIcons(){
   if(window.lucide) lucide.createIcons();
+}
+
+function jumpToIncident(id){
+  ST.expanded.add(id);
+  renderBoard();
+  setTimeout(()=>{
+    const el = document.querySelector(`[data-inc-id="${id}"]`);
+    if(el) el.scrollIntoView({behavior:'smooth', block:'center'});
+  }, 60);
 }
 
 /* -------- QUICK ACTIONS BAR ---------- */

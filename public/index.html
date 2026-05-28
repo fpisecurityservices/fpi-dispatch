@@ -936,6 +936,61 @@ textarea.inp{resize:none;min-height:78px;line-height:1.45;}
 .esc-num.warn-num{background:var(--warn);}
 .esc-num.danger-num{background:var(--danger);}
 
+/* ---------- ACTION BANNER ---------- */
+.action-banner{
+  margin:12px 22px 0;padding:9px 13px;border-radius:8px;
+  background:var(--danger-50);border:1px solid var(--danger-200);
+  color:var(--danger-700);font-size:12px;font-weight:500;
+  display:flex;align-items:center;gap:7px;
+}
+.action-banner .ic{color:var(--danger);flex-shrink:0;}
+
+/* ---------- SWIM LANES ---------- */
+.swim-lane{margin-bottom:14px;}
+.swim-head{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:6px 22px;
+  font-family:var(--f-d);font-weight:700;font-size:11px;
+  letter-spacing:.14em;text-transform:uppercase;
+  cursor:pointer;user-select:none;
+}
+.swim-head:hover{opacity:.8;}
+.lane-urgent .swim-head{color:var(--danger-700);}
+.lane-action .swim-head{color:var(--warn-700);}
+.lane-monitor .swim-head{color:var(--n500);}
+.swim-count{
+  font-family:var(--f-m);font-size:10px;font-weight:600;
+  background:rgba(0,0,0,.07);padding:1px 8px;border-radius:10px;
+}
+.swim-body{display:flex;flex-direction:column;gap:10px;padding:0 22px;}
+.swim-lane.collapsed .swim-body{display:none;}
+
+/* Overdue pulsing border */
+@keyframes overdueGlow{
+  0%,100%{box-shadow:0 0 0 0 rgba(192,57,43,.0),var(--sh-xs);}
+  50%{box-shadow:0 0 0 4px rgba(192,57,43,.22),var(--sh-xs);}
+}
+.inc-overdue-alert{
+  border-color:var(--danger)!important;
+  animation:overdueGlow 2s ease-in-out infinite;
+}
+
+/* Needs Action badge */
+.needs-action-badge{
+  display:inline-flex;align-items:center;gap:4px;
+  padding:1px 8px;border-radius:11px;
+  background:var(--danger);color:#fff;
+  font-size:9px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;
+  animation:pulse 2s infinite;
+}
+
+/* Clickable incident ID in log */
+.log-inc-link{
+  font-family:var(--f-m);font-size:10px;color:var(--b500);font-weight:600;
+  cursor:pointer;text-decoration:underline;text-underline-offset:2px;
+}
+.log-inc-link:hover{color:var(--b700);}
+
 /* Scrollbars */
 ::-webkit-scrollbar{width:8px;height:8px;}
 ::-webkit-scrollbar-track{background:transparent;}
