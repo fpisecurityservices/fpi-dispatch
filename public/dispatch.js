@@ -85,7 +85,7 @@ const ST = {
   expanded: new Set(),
   addingUpdateTo: null,
   bols: JSON.parse(localStorage.getItem('fpi_bols')||'[]'),
-  guards: JSON.parse(localStorage.getItem('fpi_guards')||'[]')
+  guards: []
 };
 
 /* -------- API DATA LAYER -------- */
@@ -1484,35 +1484,52 @@ function renderReference(){
   refreshIcons();
   renderBolList();
   renderEscalationList();
-  renderGuardsList();
+  loadGuards().then(renderGuardsList);
 }
 
 /* -------- AVAILABLE GUARDS ---------- */
-const GUARDS_KEY = 'fpi_guards';
-function saveGuards(){ localStorage.setItem(GUARDS_KEY, JSON.stringify(ST.guards)); }
+async function loadGuards(){
+  try {
+    const r = await fetch('/api/guards');
+    if(r.ok) ST.guards = await r.json();
+  } catch(e){ console.error('loadGuards:', e); }
+}
 
-function addGuard(){
+async function addGuard(){
   const inp = document.getElementById('guard-input');
   const name = (inp?.value||'').trim(); if(!name) return;
   const days = [...document.querySelectorAll('.guard-day-cb:checked')].map(c=>c.value);
   const shifts = [...document.querySelectorAll('.guard-shift-cb:checked')].map(c=>c.value);
-  ST.guards.push({id:Date.now(), name, status:'available', days, shifts});
-  saveGuards();
+  try {
+    const r = await fetch('/api/guards', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({name, status:'available', days, shifts})
+    });
+    if(r.ok){ ST.guards.push(await r.json()); }
+  } catch(e){ console.error('addGuard:', e); }
   inp.value='';
   document.querySelectorAll('.guard-day-cb,.guard-shift-cb').forEach(c=>c.checked=false);
   renderGuardsList();
 }
 
-function removeGuard(id){
-  ST.guards = ST.guards.filter(g=>g.id!==id);
-  saveGuards();
+async function removeGuard(id){
+  try {
+    await fetch(`/api/guards/${id}`, {method:'DELETE'});
+    ST.guards = ST.guards.filter(g=>g.id!==id);
+  } catch(e){ console.error('removeGuard:', e); }
   renderGuardsList();
 }
 
-function toggleGuardStatus(id){
+async function toggleGuardStatus(id){
   const g = ST.guards.find(x=>x.id===id); if(!g) return;
-  g.status = g.status==='available' ? 'busy' : 'available';
-  saveGuards();
+  const newStatus = g.status==='available' ? 'busy' : 'available';
+  try {
+    const r = await fetch(`/api/guards/${id}`, {
+      method:'PATCH', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({status: newStatus})
+    });
+    if(r.ok) g.status = newStatus;
+  } catch(e){ console.error('toggleGuardStatus:', e); }
   renderGuardsList();
 }
 
@@ -1562,7 +1579,7 @@ function setRightTab(tab){
     refView.style.display='flex';
     if(csvBtn) csvBtn.style.display='none';
     if(!_refRendered){ renderReference(); _refRendered=true; }
-    else { renderBolList(); renderGuardsList(); }
+    else { renderBolList(); loadGuards().then(renderGuardsList); }
   }
 }
 
