@@ -857,6 +857,85 @@ textarea.inp{resize:none;min-height:78px;line-height:1.45;}
 }
 .toast-x:hover{color:var(--n900);}
 
+/* ---------- QUICK ACTIONS BAR ---------- */
+.qa-bar{padding:10px 14px 0;display:flex;gap:5px;}
+.qa-btn{
+  flex:1;padding:9px 4px 8px;border-radius:8px;
+  background:var(--n50);border:1.5px solid var(--n100);
+  color:var(--n600);font-weight:700;font-size:10px;letter-spacing:.04em;text-transform:uppercase;
+  display:flex;flex-direction:column;align-items:center;gap:3px;transition:all .12s;cursor:pointer;
+}
+.qa-btn .ic{width:15px;height:15px;}
+.qa-btn:hover{background:#fff;border-color:var(--n200);box-shadow:var(--sh-xs);}
+.qa-checkin:hover{background:var(--ok-50)!important;border-color:var(--ok-200)!important;color:var(--ok-700)!important;}
+.qa-ncns:hover,.qa-late:hover{background:var(--warn-50)!important;border-color:var(--warn-200)!important;color:var(--warn-700)!important;}
+.qa-abandon:hover{background:var(--danger-50)!important;border-color:var(--danger)!important;color:var(--danger)!important;}
+.qa-sched:hover{background:var(--b50)!important;border-color:var(--b200)!important;color:var(--b500)!important;}
+
+/* ---------- RIGHT COLUMN TABS ---------- */
+.rt-tabs{display:flex;}
+.rt-tab{
+  padding:8px 12px;background:transparent;border:none;
+  font-weight:600;font-size:12px;color:var(--n500);
+  display:inline-flex;align-items:center;gap:6px;
+  border-bottom:2px solid transparent;margin-bottom:-1px;cursor:pointer;
+}
+.rt-tab:hover{color:var(--n800);}
+.rt-tab.act{color:var(--b500);border-bottom-color:var(--b500);}
+.tab-count{
+  font-family:var(--f-m);font-size:10px;font-weight:600;
+  background:var(--n100);color:var(--n600);padding:1px 6px;border-radius:10px;
+}
+.rt-tab.act .tab-count{background:var(--b50);color:var(--b500);}
+
+/* ---------- REFERENCE PANEL ---------- */
+.ref-view-panel{flex:1;overflow-y:auto;display:none;flex-direction:column;}
+.ref-s-head{
+  padding:11px 18px 10px;
+  display:flex;align-items:center;justify-content:space-between;
+  background:#fff;border-bottom:1px solid var(--n100);
+  position:sticky;top:0;z-index:2;
+}
+.ref-s-title{
+  font-family:var(--f-d);font-weight:700;font-size:11px;
+  letter-spacing:.16em;text-transform:uppercase;color:var(--n600);
+  display:flex;align-items:center;gap:7px;
+}
+.ref-s-title .ic{width:13px;height:13px;color:var(--b500);}
+.bol-add{padding:10px 18px 10px;display:flex;gap:6px;background:var(--n50);border-bottom:1px solid var(--n100);}
+.bol-add .inp{flex:1;font-size:13px;padding:8px 10px;}
+.bol-empty{padding:18px;font-size:12px;color:var(--n400);text-align:center;font-style:italic;}
+.bol-item{
+  display:grid;grid-template-columns:1fr auto;gap:8px;
+  padding:9px 18px 10px;border-bottom:1px solid var(--n100);align-items:start;
+}
+.bol-item:hover{background:var(--warn-50);}
+.bol-text{font-size:13px;font-weight:600;color:var(--n900);line-height:1.4;}
+.bol-meta{font-size:10px;color:var(--n400);margin-top:2px;font-family:var(--f-m);}
+.bol-clr{background:transparent;border:none;color:var(--n400);padding:3px;border-radius:4px;cursor:pointer;}
+.bol-clr:hover{background:var(--danger-50);color:var(--danger);}
+.esc-list{padding:10px 18px 16px;display:flex;flex-direction:column;gap:7px;}
+.esc-card{background:#fff;border:1px solid var(--n100);border-radius:8px;overflow:hidden;}
+.esc-card-hd{
+  padding:9px 12px;display:flex;align-items:center;justify-content:space-between;
+  background:var(--n50);border-bottom:1px solid var(--n100);cursor:pointer;
+}
+.esc-cat{font-size:12px;font-weight:700;color:var(--n800);}
+.esc-card-hd:hover{background:var(--b50);}
+.esc-lvl{font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;padding:2px 8px;border-radius:10px;}
+.esc-lvl.critical{background:var(--danger-50);color:var(--danger-700);}
+.esc-lvl.high{background:var(--warn-50);color:var(--warn-700);}
+.esc-lvl.medium{background:var(--b50);color:var(--b500);}
+.esc-body{padding:10px 12px;display:flex;flex-direction:column;gap:7px;}
+.esc-step{display:flex;gap:8px;align-items:flex-start;font-size:12px;color:var(--n700);line-height:1.4;}
+.esc-num{
+  width:18px;height:18px;border-radius:50%;flex-shrink:0;margin-top:1px;
+  background:var(--b400);color:#fff;font-size:9px;font-weight:700;
+  display:grid;place-items:center;
+}
+.esc-num.warn-num{background:var(--warn);}
+.esc-num.danger-num{background:var(--danger);}
+
 /* Scrollbars */
 ::-webkit-scrollbar{width:8px;height:8px;}
 ::-webkit-scrollbar-track{background:transparent;}
@@ -914,6 +993,7 @@ textarea.inp{resize:none;min-height:78px;line-height:1.45;}
       <button class="btn btn-ghost" style="padding:4px 8px;font-size:11px;" onclick="resetForm()">Clear</button>
     </div>
     <div class="col-body">
+      <div class="qa-bar" id="qa-bar"></div>
       <div class="cap-tabs" id="cap-tabs"></div>
       <form class="cap-form" id="cap-form" onsubmit="event.preventDefault();submitEntry();">
 
@@ -981,19 +1061,29 @@ textarea.inp{resize:none;min-height:78px;line-height:1.45;}
     </div>
   </section>
 
-  <!-- RIGHT: Activity Log -->
+  <!-- RIGHT: Activity Log + Reference -->
   <section class="col col-right">
-    <div class="col-head">
-      <div class="col-title">Activity Log <span class="ct-count" id="log-count">—</span></div>
-      <button class="btn btn-ghost" style="padding:4px 8px;font-size:11px;" onclick="exportCSV()"><i data-lucide="download" class="ic"></i> CSV</button>
+    <div class="col-head" style="padding:0;gap:0;border-bottom:none;">
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:6px 14px 0;border-bottom:1px solid var(--n100);width:100%;">
+        <div class="rt-tabs">
+          <button class="rt-tab act" id="rt-log" onclick="setRightTab('log')"><i data-lucide="list" class="ic"></i> Activity Log <span class="tab-count" id="log-count">—</span></button>
+          <button class="rt-tab" id="rt-ref" onclick="setRightTab('ref')"><i data-lucide="book-open" class="ic"></i> Reference</button>
+        </div>
+        <button class="btn btn-ghost" style="padding:4px 8px;font-size:11px;" id="csv-btn" onclick="exportCSV()"><i data-lucide="download" class="ic"></i> CSV</button>
+      </div>
     </div>
-    <div class="log-filters">
-      <div class="tab-row" id="log-tabs"></div>
-      <div class="tab-row" id="log-date-tabs"></div>
-      <input type="text" class="log-search" id="log-search" placeholder="Search name, location, notes…" oninput="renderLog()">
+    <div id="right-log-view" style="display:flex;flex-direction:column;flex:1;min-height:0;">
+      <div class="log-filters">
+        <div class="tab-row" id="log-tabs"></div>
+        <div class="tab-row" id="log-date-tabs"></div>
+        <input type="text" class="log-search" id="log-search" placeholder="Search name, location, notes…" oninput="renderLog()">
+      </div>
+      <div class="col-body">
+        <div class="log-body" id="log-body"></div>
+      </div>
     </div>
-    <div class="col-body">
-      <div class="log-body" id="log-body"></div>
+    <div id="right-ref-view" class="ref-view-panel">
+      <div id="ref-panel"></div>
     </div>
   </section>
 
