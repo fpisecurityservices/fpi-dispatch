@@ -985,10 +985,19 @@ textarea.inp{resize:none;min-height:78px;line-height:1.45;}
 }
 
 /* Available Guards */
-.guard-item{
-  display:flex;align-items:center;gap:8px;
-  padding:8px 18px;border-bottom:1px solid var(--n100);
-}
+.guard-add-form{padding:10px 18px 6px;display:flex;flex-direction:column;gap:6px;}
+.guard-add-row{display:flex;align-items:flex-start;gap:8px;}
+.guard-add-label{font-size:10px;font-weight:700;color:var(--n500);letter-spacing:.06em;min-width:38px;padding-top:3px;}
+.guard-day-checks{display:flex;flex-wrap:wrap;gap:4px;}
+.guard-check-label{display:inline-flex;align-items:center;gap:3px;cursor:pointer;
+  background:var(--n50);border:1px solid var(--n200);border-radius:6px;
+  padding:2px 7px;font-size:11px;font-weight:600;color:var(--n700);
+  transition:background .15s,border-color .15s;}
+.guard-check-label:has(input:checked){background:var(--brand-50,#eef2ff);border-color:var(--brand-300,#a5b4fc);color:var(--brand-700,#4338ca);}
+.guard-check-label input{display:none;}
+.guard-item{padding:8px 18px;border-bottom:1px solid var(--n100);}
+.guard-item-main{display:flex;flex-direction:column;gap:4px;}
+.guard-item-top{display:flex;align-items:center;gap:8px;}
 .guard-name{flex:1;font-size:13px;font-weight:600;color:var(--n900);}
 .guard-status{
   display:inline-flex;align-items:center;gap:5px;
@@ -998,6 +1007,12 @@ textarea.inp{resize:none;min-height:78px;line-height:1.45;}
 .guard-status.available{background:var(--ok-50);border-color:var(--ok-200);color:var(--ok-700);}
 .guard-status.busy{background:var(--warn-50);border-color:var(--warn-200);color:var(--warn-700);}
 .guard-dot{width:6px;height:6px;border-radius:50%;background:currentColor;flex-shrink:0;}
+.guard-avail{display:flex;flex-wrap:wrap;gap:6px;padding-left:2px;}
+.guard-avail-group{display:inline-flex;align-items:center;gap:3px;flex-wrap:wrap;}
+.guard-avail-group .ic-sm{color:var(--n400);}
+.guard-chip{background:var(--n100);border:1px solid var(--n200);border-radius:5px;
+  font-size:10px;font-weight:600;color:var(--n600);padding:1px 6px;}
+.guard-chip.shift{background:var(--brand-50,#eef2ff);border-color:var(--brand-200,#c7d2fe);color:var(--brand-700,#4338ca);}
 
 /* Escalation edit mode */
 .esc-editing .esc-body{background:var(--n50);padding:12px;}

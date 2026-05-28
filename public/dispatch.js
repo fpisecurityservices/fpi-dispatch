@@ -1454,12 +1454,29 @@ function renderReference(){
         <div class="ref-s-title"><i data-lucide="users" class="ic"></i> Available Guards</div>
         <span style="font-size:10px;color:var(--n400);">Click status to toggle</span>
       </div>
-      <div class="bol-add">
-        <input class="inp" id="guard-input" placeholder="Guard name…"
-          onkeydown="if(event.key==='Enter'){event.preventDefault();addGuard();}">
-        <button class="btn btn-primary" style="padding:8px 13px;font-size:12px;white-space:nowrap;" onclick="addGuard()">
-          <i data-lucide="plus" class="ic"></i> Add
-        </button>
+      <div class="guard-add-form">
+        <div style="display:flex;gap:6px;align-items:center;">
+          <input class="inp" id="guard-input" placeholder="Guard name…" style="flex:1;">
+          <button class="btn btn-primary" style="padding:8px 13px;font-size:12px;white-space:nowrap;" onclick="addGuard()">
+            <i data-lucide="plus" class="ic"></i> Add
+          </button>
+        </div>
+        <div class="guard-add-row">
+          <span class="guard-add-label">Days:</span>
+          <div class="guard-day-checks">
+            ${['Mon','Tue','Wed','Thu','Fri','Sat','Sun'].map(d=>`
+              <label class="guard-check-label"><input type="checkbox" class="guard-day-cb" value="${d}"><span>${d}</span></label>
+            `).join('')}
+          </div>
+        </div>
+        <div class="guard-add-row">
+          <span class="guard-add-label">Shifts:</span>
+          <div class="guard-day-checks">
+            ${['Mornings','Afternoons','Overnights'].map(s=>`
+              <label class="guard-check-label"><input type="checkbox" class="guard-shift-cb" value="${s}"><span>${s}</span></label>
+            `).join('')}
+          </div>
+        </div>
       </div>
       <div id="guards-list"></div>
     </div>
@@ -1477,9 +1494,12 @@ function saveGuards(){ localStorage.setItem(GUARDS_KEY, JSON.stringify(ST.guards
 function addGuard(){
   const inp = document.getElementById('guard-input');
   const name = (inp?.value||'').trim(); if(!name) return;
-  ST.guards.push({id:Date.now(), name, status:'available'});
+  const days = [...document.querySelectorAll('.guard-day-cb:checked')].map(c=>c.value);
+  const shifts = [...document.querySelectorAll('.guard-shift-cb:checked')].map(c=>c.value);
+  ST.guards.push({id:Date.now(), name, status:'available', days, shifts});
   saveGuards();
   inp.value='';
+  document.querySelectorAll('.guard-day-cb,.guard-shift-cb').forEach(c=>c.checked=false);
   renderGuardsList();
 }
 
@@ -1504,15 +1524,25 @@ function renderGuardsList(){
   }
   const avail = ST.guards.filter(g=>g.status==='available').length;
   el.innerHTML = `<div style="padding:6px 18px;font-size:10px;color:var(--n500);letter-spacing:.06em;">${avail} of ${ST.guards.length} available</div>`
-    + ST.guards.map(g=>`
+    + ST.guards.map(g=>{
+      const hasSched = (g.days?.length||0) + (g.shifts?.length||0) > 0;
+      return `
     <div class="guard-item">
-      <button class="guard-status ${g.status}" onclick="toggleGuardStatus(${g.id})" title="Click to toggle">
-        <span class="guard-dot"></span>${g.status==='available'?'Available':'Busy'}
-      </button>
-      <span class="guard-name">${esc(g.name)}</span>
-      <button class="bol-clr" onclick="removeGuard(${g.id})" title="Remove"><i data-lucide="x" class="ic-sm"></i></button>
-    </div>
-  `).join('');
+      <div class="guard-item-main">
+        <div class="guard-item-top">
+          <button class="guard-status ${g.status}" onclick="toggleGuardStatus(${g.id})" title="Click to toggle">
+            <span class="guard-dot"></span>${g.status==='available'?'Available':'Busy'}
+          </button>
+          <span class="guard-name">${esc(g.name)}</span>
+          <button class="bol-clr" onclick="removeGuard(${g.id})" title="Remove"><i data-lucide="x" class="ic-sm"></i></button>
+        </div>
+        ${hasSched ? `<div class="guard-avail">
+          ${g.days?.length ? `<span class="guard-avail-group"><i data-lucide="calendar" class="ic-sm"></i>${g.days.map(d=>`<span class="guard-chip">${d}</span>`).join('')}</span>` : ''}
+          ${g.shifts?.length ? `<span class="guard-avail-group"><i data-lucide="clock" class="ic-sm"></i>${g.shifts.map(s=>`<span class="guard-chip shift">${s}</span>`).join('')}</span>` : ''}
+        </div>` : ''}
+      </div>
+    </div>`;
+    }).join('');
   refreshIcons();
 }
 
