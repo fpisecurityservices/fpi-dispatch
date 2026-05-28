@@ -984,6 +984,24 @@ textarea.inp{resize:none;min-height:78px;line-height:1.45;}
   animation:pulse 2s infinite;
 }
 
+/* Available Guards */
+.guard-item{
+  display:flex;align-items:center;gap:8px;
+  padding:8px 18px;border-bottom:1px solid var(--n100);
+}
+.guard-name{flex:1;font-size:13px;font-weight:600;color:var(--n900);}
+.guard-status{
+  display:inline-flex;align-items:center;gap:5px;
+  padding:3px 9px;border-radius:12px;font-size:10px;font-weight:700;
+  letter-spacing:.04em;border:1px solid;cursor:pointer;background:transparent;
+}
+.guard-status.available{background:var(--ok-50);border-color:var(--ok-200);color:var(--ok-700);}
+.guard-status.busy{background:var(--warn-50);border-color:var(--warn-200);color:var(--warn-700);}
+.guard-dot{width:6px;height:6px;border-radius:50%;background:currentColor;flex-shrink:0;}
+
+/* Escalation edit mode */
+.esc-editing .esc-body{background:var(--n50);padding:12px;}
+
 /* Clickable incident ID in log */
 .log-inc-link{
   font-family:var(--f-m);font-size:10px;color:var(--b500);font-weight:600;

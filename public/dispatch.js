@@ -84,7 +84,8 @@ const ST = {
   dateFilter: 7,
   expanded: new Set(),
   addingUpdateTo: null,
-  bols: JSON.parse(localStorage.getItem('fpi_bols')||'[]')
+  bols: JSON.parse(localStorage.getItem('fpi_bols')||'[]'),
+  guards: JSON.parse(localStorage.getItem('fpi_guards')||'[]')
 };
 
 /* -------- API DATA LAYER -------- */
@@ -591,7 +592,7 @@ function renderIncidentCard(inc){
           <span class="inc-meta-item"><i data-lucide="${ctIcon}"></i>${esc(inc.category)}</span>
           ${inc.guardName?`<span class="sep">·</span><span class="inc-meta-item"><i data-lucide="shield"></i><strong style="color:var(--n800);">${esc(inc.guardName)}</strong></span>`:''}
           ${inc.callerName?`<span class="sep">·</span><span class="inc-meta-item"><i data-lucide="user"></i><strong style="color:var(--n800);">${esc(inc.callerName)}</strong></span>`:''}
-          ${inc.account?`<span class="sep">·</span><span class="inc-meta-item"><i data-lucide="briefcase"></i>${esc(inc.account)}</span>`:''}
+          ${(inc.account||(inc.account_id?ST.accounts.find(a=>a.id===inc.account_id)?.name:null))?`<span class="sep">·</span><span class="inc-meta-item"><i data-lucide="briefcase"></i>${esc(inc.account||(ST.accounts.find(a=>a.id===inc.account_id)?.name)||'')}</span>`:''}
           ${inc.site?`<span class="sep">·</span><span class="inc-meta-item"><i data-lucide="map-pin"></i>${esc(inc.site)}</span>`:''}
           ${inc.unit?`<span class="sep">·</span><span class="inc-meta-item"><i data-lucide="radio"></i>${esc(inc.unit)}</span>`:''}
           ${inc.callback?`<span class="sep">·</span><span class="inc-meta-item"><i data-lucide="phone"></i><span style="font-family:var(--f-m);">${esc(inc.callback)}</span></span>`:''}
@@ -1248,7 +1249,8 @@ function renderQABar(){
 }
 
 /* -------- ESCALATION PROTOCOLS ---------- */
-const ESCALATION_PROTOCOLS = [
+const PROTOCOLS_KEY = 'fpi_protocols';
+const DEFAULT_PROTOCOLS = [
   { category:'Medical Emergency', trigger:'critical',
     steps:['Call 911 immediately — do not wait for officer assessment',
            'Notify Field Supervisor & Ops Manager simultaneously',
@@ -1280,6 +1282,52 @@ const ESCALATION_PROTOCOLS = [
            'If behavior escalates to threat level, authorize officer to call 911',
            'Notify client if activity is on or adjacent to their property'] }
 ];
+let ESCALATION_PROTOCOLS = JSON.parse(localStorage.getItem(PROTOCOLS_KEY)) || DEFAULT_PROTOCOLS.map(p=>({...p, steps:[...p.steps]}));
+function saveProtocols(){ localStorage.setItem(PROTOCOLS_KEY, JSON.stringify(ESCALATION_PROTOCOLS)); }
+
+let _editingProtocol = null;
+function startEditProtocol(i){ _editingProtocol=i; renderEscalationList(); }
+function cancelEditProtocol(){ _editingProtocol=null; renderEscalationList(); }
+
+function addProtocol(){
+  ESCALATION_PROTOCOLS.push({category:'New Protocol', trigger:'medium', steps:['Step 1']});
+  _editingProtocol = ESCALATION_PROTOCOLS.length - 1;
+  saveProtocols();
+  renderEscalationList();
+}
+function removeProtocol(i){
+  ESCALATION_PROTOCOLS.splice(i,1);
+  _editingProtocol=null;
+  saveProtocols();
+  renderEscalationList();
+  toast('Protocol removed','warn');
+}
+function _collectSteps(i){
+  return Array.from(document.querySelectorAll(`[data-step="${i}"]`)).map(el=>el.value.trim()).filter(Boolean);
+}
+function addStep(i){
+  const steps = _collectSteps(i);
+  steps.push('');
+  ESCALATION_PROTOCOLS[i].steps = steps;
+  renderEscalationList();
+  setTimeout(()=>{ const els=document.querySelectorAll(`[data-step="${i}"]`); els[els.length-1]?.focus(); },20);
+}
+function removeStep(i,j){
+  const steps = _collectSteps(i);
+  steps.splice(j,1);
+  ESCALATION_PROTOCOLS[i].steps = steps.length ? steps : [''];
+  renderEscalationList();
+}
+function saveProtocolEdit(i){
+  const cat = document.getElementById(`esc-edit-cat-${i}`)?.value.trim(); if(!cat) return;
+  const trigger = document.getElementById(`esc-edit-lvl-${i}`)?.value;
+  const steps = _collectSteps(i);
+  ESCALATION_PROTOCOLS[i] = {category:cat, trigger, steps:steps.length?steps:['']};
+  saveProtocols();
+  _editingProtocol=null;
+  renderEscalationList();
+  toast('Protocol saved','ok');
+}
 
 /* -------- BOL / WATCH ORDERS ---------- */
 const BOL_KEY = 'fpi_bols';
@@ -1328,24 +1376,51 @@ function toggleEscCard(i){
 
 function renderEscalationList(){
   const el = document.getElementById('esc-list'); if(!el) return;
-  el.innerHTML = ESCALATION_PROTOCOLS.map((p,i)=>`
-    <div class="esc-card">
+  el.innerHTML = ESCALATION_PROTOCOLS.map((p,i)=>{
+    if(_editingProtocol===i){
+      return `<div class="esc-card esc-editing">
+        <div class="esc-card-hd" style="background:var(--b50);cursor:default;">
+          <input id="esc-edit-cat-${i}" class="inp" value="${esc(p.category)}" style="flex:1;font-size:12px;font-weight:700;padding:5px 8px;">
+          <select id="esc-edit-lvl-${i}" style="padding:4px 8px;border-radius:5px;border:1px solid var(--n200);font-size:11px;font-weight:700;margin-left:8px;">
+            <option value="critical" ${p.trigger==='critical'?'selected':''}>CRITICAL</option>
+            <option value="high"     ${p.trigger==='high'?'selected':''}>HIGH</option>
+            <option value="medium"   ${p.trigger==='medium'?'selected':''}>MEDIUM</option>
+          </select>
+        </div>
+        <div class="esc-body">
+          ${p.steps.map((s,j)=>`
+            <div class="esc-step" style="align-items:center;">
+              <span class="esc-num">${j+1}</span>
+              <input class="inp" data-step="${i}" value="${esc(s)}" style="flex:1;font-size:12px;padding:5px 8px;">
+              <button onclick="removeStep(${i},${j})" class="bol-clr" title="Remove step"><i data-lucide="x" class="ic-sm"></i></button>
+            </div>`).join('')}
+          <button onclick="addStep(${i})" class="btn" style="margin-top:4px;padding:5px 10px;font-size:11px;"><i data-lucide="plus" class="ic"></i> Add Step</button>
+        </div>
+        <div style="display:flex;gap:6px;padding:8px 12px;border-top:1px solid var(--n100);background:var(--n50);">
+          <button onclick="saveProtocolEdit(${i})" class="btn btn-primary" style="padding:6px 12px;font-size:12px;"><i data-lucide="save" class="ic"></i> Save</button>
+          <button onclick="cancelEditProtocol()" class="btn" style="padding:6px 12px;font-size:12px;">Cancel</button>
+          <div style="flex:1;"></div>
+          <button onclick="removeProtocol(${i})" class="btn btn-danger" style="padding:6px 10px;font-size:12px;" title="Delete protocol"><i data-lucide="trash-2" class="ic"></i></button>
+        </div>
+      </div>`;
+    }
+    return `<div class="esc-card">
       <div class="esc-card-hd" onclick="toggleEscCard(${i})">
         <span class="esc-cat">${esc(p.category)}</span>
-        <span class="esc-lvl ${p.trigger}">${p.trigger.toUpperCase()}</span>
+        <div style="display:flex;align-items:center;gap:6px;">
+          <span class="esc-lvl ${p.trigger}">${p.trigger.toUpperCase()}</span>
+          <button onclick="event.stopPropagation();startEditProtocol(${i})" class="bol-clr" title="Edit protocol"><i data-lucide="pencil" class="ic-sm"></i></button>
+        </div>
       </div>
       <div class="esc-body" id="esc-body-${i}" style="${i===0?'':'display:none'}">
         ${p.steps.map((s,j)=>{
-          const numCls = (p.trigger==='critical'&&j===p.steps.length-1)?'danger-num'
-            :(p.trigger!=='medium'&&j===1)?'warn-num':'';
-          return `<div class="esc-step">
-            <span class="esc-num ${numCls}">${j+1}</span>
-            <span>${esc(s)}</span>
-          </div>`;
+          const numCls=(p.trigger==='critical'&&j===p.steps.length-1)?'danger-num':(p.trigger!=='medium'&&j===1)?'warn-num':'';
+          return `<div class="esc-step"><span class="esc-num ${numCls}">${j+1}</span><span>${esc(s)}</span></div>`;
         }).join('')}
       </div>
-    </div>
-  `).join('');
+    </div>`;
+  }).join('');
+  el.innerHTML += `<button onclick="addProtocol()" class="btn" style="width:100%;justify-content:center;margin-top:4px;padding:8px;font-size:12px;border-style:dashed;"><i data-lucide="plus" class="ic"></i> Add Protocol</button>`;
   refreshIcons();
 }
 
@@ -1374,10 +1449,71 @@ function renderReference(){
       </div>
       <div class="esc-list" id="esc-list"></div>
     </div>
+    <div style="border-top:2px solid var(--n100);margin-top:4px;">
+      <div class="ref-s-head">
+        <div class="ref-s-title"><i data-lucide="users" class="ic"></i> Available Guards</div>
+        <span style="font-size:10px;color:var(--n400);">Click status to toggle</span>
+      </div>
+      <div class="bol-add">
+        <input class="inp" id="guard-input" placeholder="Guard name…"
+          onkeydown="if(event.key==='Enter'){event.preventDefault();addGuard();}">
+        <button class="btn btn-primary" style="padding:8px 13px;font-size:12px;white-space:nowrap;" onclick="addGuard()">
+          <i data-lucide="plus" class="ic"></i> Add
+        </button>
+      </div>
+      <div id="guards-list"></div>
+    </div>
   `;
   refreshIcons();
   renderBolList();
   renderEscalationList();
+  renderGuardsList();
+}
+
+/* -------- AVAILABLE GUARDS ---------- */
+const GUARDS_KEY = 'fpi_guards';
+function saveGuards(){ localStorage.setItem(GUARDS_KEY, JSON.stringify(ST.guards)); }
+
+function addGuard(){
+  const inp = document.getElementById('guard-input');
+  const name = (inp?.value||'').trim(); if(!name) return;
+  ST.guards.push({id:Date.now(), name, status:'available'});
+  saveGuards();
+  inp.value='';
+  renderGuardsList();
+}
+
+function removeGuard(id){
+  ST.guards = ST.guards.filter(g=>g.id!==id);
+  saveGuards();
+  renderGuardsList();
+}
+
+function toggleGuardStatus(id){
+  const g = ST.guards.find(x=>x.id===id); if(!g) return;
+  g.status = g.status==='available' ? 'busy' : 'available';
+  saveGuards();
+  renderGuardsList();
+}
+
+function renderGuardsList(){
+  const el = document.getElementById('guards-list'); if(!el) return;
+  if(!ST.guards.length){
+    el.innerHTML = '<div class="bol-empty">No guards listed — add one above</div>';
+    return;
+  }
+  const avail = ST.guards.filter(g=>g.status==='available').length;
+  el.innerHTML = `<div style="padding:6px 18px;font-size:10px;color:var(--n500);letter-spacing:.06em;">${avail} of ${ST.guards.length} available</div>`
+    + ST.guards.map(g=>`
+    <div class="guard-item">
+      <button class="guard-status ${g.status}" onclick="toggleGuardStatus(${g.id})" title="Click to toggle">
+        <span class="guard-dot"></span>${g.status==='available'?'Available':'Busy'}
+      </button>
+      <span class="guard-name">${esc(g.name)}</span>
+      <button class="bol-clr" onclick="removeGuard(${g.id})" title="Remove"><i data-lucide="x" class="ic-sm"></i></button>
+    </div>
+  `).join('');
+  refreshIcons();
 }
 
 /* -------- RIGHT TAB SWITCHER ---------- */
@@ -1396,7 +1532,7 @@ function setRightTab(tab){
     refView.style.display='flex';
     if(csvBtn) csvBtn.style.display='none';
     if(!_refRendered){ renderReference(); _refRendered=true; }
-    else renderBolList();
+    else { renderBolList(); renderGuardsList(); }
   }
 }
 
