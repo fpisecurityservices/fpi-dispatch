@@ -589,6 +589,9 @@ function renderIncidentCard(inc){
         </div>
         <div class="inc-line2">
           <span class="inc-meta-item"><i data-lucide="${ctIcon}"></i>${esc(inc.category)}</span>
+          ${inc.guardName?`<span class="sep">·</span><span class="inc-meta-item"><i data-lucide="shield"></i><strong style="color:var(--n800);">${esc(inc.guardName)}</strong></span>`:''}
+          ${inc.callerName?`<span class="sep">·</span><span class="inc-meta-item"><i data-lucide="user"></i><strong style="color:var(--n800);">${esc(inc.callerName)}</strong></span>`:''}
+          ${inc.account?`<span class="sep">·</span><span class="inc-meta-item"><i data-lucide="briefcase"></i>${esc(inc.account)}</span>`:''}
           ${inc.site?`<span class="sep">·</span><span class="inc-meta-item"><i data-lucide="map-pin"></i>${esc(inc.site)}</span>`:''}
           ${inc.unit?`<span class="sep">·</span><span class="inc-meta-item"><i data-lucide="radio"></i>${esc(inc.unit)}</span>`:''}
           ${inc.callback?`<span class="sep">·</span><span class="inc-meta-item"><i data-lucide="phone"></i><span style="font-family:var(--f-m);">${esc(inc.callback)}</span></span>`:''}
