@@ -83,7 +83,8 @@ const ST = {
   logFilter: 'all',
   dateFilter: 7,
   expanded: new Set(),
-  addingUpdateTo: null
+  addingUpdateTo: null,
+  bols: JSON.parse(localStorage.getItem('fpi_bols')||'[]')
 };
 
 /* -------- API DATA LAYER -------- */
@@ -1182,6 +1183,178 @@ function refreshIcons(){
   if(window.lucide) lucide.createIcons();
 }
 
+/* -------- QUICK ACTIONS BAR ---------- */
+const QA_CONFIG = [
+  {key:'checkin', label:'Check-in', icon:'radio',          cls:'qa-checkin'},
+  {key:'ncns',    label:'NCNS',     icon:'user-x',         cls:'qa-ncns'},
+  {key:'late',    label:'Late',     icon:'clock',          cls:'qa-late'},
+  {key:'abandon', label:'Abandon',  icon:'alert-triangle', cls:'qa-abandon'},
+  {key:'sched',   label:'Sched',    icon:'calendar',       cls:'qa-sched'},
+];
+function renderQABar(){
+  const el = document.getElementById('qa-bar'); if(!el) return;
+  el.innerHTML = QA_CONFIG.map(q=>`
+    <button type="button" class="qa-btn ${q.cls}" onclick="applyQuick('${q.key}')" title="${QUICK_ACTIONS.find(a=>a.key===q.key)?.cat||q.label}">
+      <i data-lucide="${q.icon}" class="ic"></i>
+      <span>${q.label}</span>
+    </button>
+  `).join('');
+  refreshIcons();
+}
+
+/* -------- ESCALATION PROTOCOLS ---------- */
+const ESCALATION_PROTOCOLS = [
+  { category:'Medical Emergency', trigger:'critical',
+    steps:['Call 911 immediately — do not wait for officer assessment',
+           'Notify Field Supervisor & Ops Manager simultaneously',
+           'Dispatch nearest officer to scene if not already on-site',
+           'Stay on line with caller until EMS arrives; document arrival time'] },
+  { category:'Post Abandoned', trigger:'critical',
+    steps:['Attempt radio & phone contact — document each attempt with timestamp',
+           'If no contact within 5 min → notify Field Supervisor for immediate coverage',
+           'Dispatch relief officer; notify Account Manager of potential service gap',
+           'Ops Manager must be notified if gap exceeds 15 min'] },
+  { category:'No Call / No Show', trigger:'high',
+    steps:['Call officer personal number — 3 attempts over 10 min, leave voicemail',
+           'Notify Field Supervisor for coverage decision',
+           'Contact Scheduling Lead — relief assignment required',
+           'Notify client contact if post will be uncovered more than 30 min'] },
+  { category:'Trespassing / Disturbance', trigger:'high',
+    steps:['Confirm officer is safe before any escalation',
+           'If physical confrontation or weapons: advise officer to disengage, call 911',
+           'Add suspect description as a BOL for all field units immediately',
+           'Notify Account Manager if incident is on client property'] },
+  { category:'Alarm Activation', trigger:'medium',
+    steps:['Dispatch nearest officer; log estimated ETA',
+           'Attempt to reach client key-holder contact',
+           'If no key-holder response within 15 min and officer is on-scene, advise 911',
+           'Log alarm company name, reference #, and clear incident when resolved'] },
+  { category:'Suspicious Activity', trigger:'medium',
+    steps:['Log full description as a BOL — share with all active field units',
+           'Advise officer: observe and report only, no direct engagement unless necessary',
+           'If behavior escalates to threat level, authorize officer to call 911',
+           'Notify client if activity is on or adjacent to their property'] }
+];
+
+/* -------- BOL / WATCH ORDERS ---------- */
+const BOL_KEY = 'fpi_bols';
+function saveBols(){ localStorage.setItem(BOL_KEY, JSON.stringify(ST.bols)); }
+
+function addBol(){
+  const inp = document.getElementById('bol-input');
+  const text = (inp?.value||'').trim(); if(!text) return;
+  ST.bols.unshift({id:Date.now(), text, ts:new Date().toISOString(), by:ST.dispatcher||'Dispatch'});
+  saveBols();
+  inp.value = '';
+  renderBolList();
+  toast('BOL added','ok','Watch order is live for this shift');
+}
+
+function clearBol(id){
+  ST.bols = ST.bols.filter(b=>b.id!==id);
+  saveBols();
+  renderBolList();
+}
+
+function renderBolList(){
+  const el = document.getElementById('bol-list'); if(!el) return;
+  if(!ST.bols.length){
+    el.innerHTML = '<div class="bol-empty">No active watch orders — add one above</div>';
+    return;
+  }
+  el.innerHTML = ST.bols.map(b=>`
+    <div class="bol-item">
+      <div>
+        <div class="bol-text">${esc(b.text)}</div>
+        <div class="bol-meta">${fmtShortDateTime(new Date(b.ts))} · ${esc(b.by)}</div>
+      </div>
+      <button class="bol-clr" onclick="clearBol(${b.id})" title="Clear this BOL">
+        <i data-lucide="x" class="ic-sm"></i>
+      </button>
+    </div>
+  `).join('');
+  refreshIcons();
+}
+
+function toggleEscCard(i){
+  const el = document.getElementById('esc-body-'+i); if(!el) return;
+  el.style.display = el.style.display==='none' ? '' : 'none';
+}
+
+function renderEscalationList(){
+  const el = document.getElementById('esc-list'); if(!el) return;
+  el.innerHTML = ESCALATION_PROTOCOLS.map((p,i)=>`
+    <div class="esc-card">
+      <div class="esc-card-hd" onclick="toggleEscCard(${i})">
+        <span class="esc-cat">${esc(p.category)}</span>
+        <span class="esc-lvl ${p.trigger}">${p.trigger.toUpperCase()}</span>
+      </div>
+      <div class="esc-body" id="esc-body-${i}" style="${i===0?'':'display:none'}">
+        ${p.steps.map((s,j)=>{
+          const numCls = (p.trigger==='critical'&&j===p.steps.length-1)?'danger-num'
+            :(p.trigger!=='medium'&&j===1)?'warn-num':'';
+          return `<div class="esc-step">
+            <span class="esc-num ${numCls}">${j+1}</span>
+            <span>${esc(s)}</span>
+          </div>`;
+        }).join('')}
+      </div>
+    </div>
+  `).join('');
+  refreshIcons();
+}
+
+let _refRendered = false;
+function renderReference(){
+  const panel = document.getElementById('ref-panel'); if(!panel) return;
+  panel.innerHTML = `
+    <div>
+      <div class="ref-s-head">
+        <div class="ref-s-title"><i data-lucide="eye" class="ic"></i> Watch Orders / BOL</div>
+        <span style="font-size:10px;color:var(--n400);">Cleared manually · shift-persistent</span>
+      </div>
+      <div class="bol-add">
+        <input class="inp" id="bol-input" placeholder="Describe subject, vehicle, or situation to watch for…"
+          onkeydown="if(event.key==='Enter'){event.preventDefault();addBol();}">
+        <button class="btn btn-primary" style="padding:8px 13px;font-size:12px;white-space:nowrap;" onclick="addBol()">
+          <i data-lucide="plus" class="ic"></i> Add
+        </button>
+      </div>
+      <div id="bol-list"></div>
+    </div>
+    <div style="border-top:2px solid var(--n100);margin-top:4px;">
+      <div class="ref-s-head">
+        <div class="ref-s-title"><i data-lucide="shield-alert" class="ic"></i> Escalation Protocols</div>
+        <span style="font-size:10px;color:var(--n400);">Tap a card to expand</span>
+      </div>
+      <div class="esc-list" id="esc-list"></div>
+    </div>
+  `;
+  refreshIcons();
+  renderBolList();
+  renderEscalationList();
+}
+
+/* -------- RIGHT TAB SWITCHER ---------- */
+function setRightTab(tab){
+  const logView = document.getElementById('right-log-view');
+  const refView = document.getElementById('right-ref-view');
+  const csvBtn  = document.getElementById('csv-btn');
+  document.getElementById('rt-log').classList.toggle('act', tab==='log');
+  document.getElementById('rt-ref').classList.toggle('act', tab==='ref');
+  if(tab==='log'){
+    logView.style.display='flex';
+    refView.style.display='none';
+    if(csvBtn) csvBtn.style.display='';
+  } else {
+    logView.style.display='none';
+    refView.style.display='flex';
+    if(csvBtn) csvBtn.style.display='none';
+    if(!_refRendered){ renderReference(); _refRendered=true; }
+    else renderBolList();
+  }
+}
+
 /* -------- CLOCK ---------- */
 function tickClock(){
   const d = new Date();
@@ -1193,6 +1366,7 @@ function tickClock(){
 
 /* -------- LIFECYCLE ---------- */
 function renderAll(){
+  renderQABar();
   renderTemplateTabs();
   renderCallerRow();
   renderDynFields();
