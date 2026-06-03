@@ -157,9 +157,16 @@ export default async function handler(req, res) {
         };
         recipients = computeRoutes(probe, ruleRows);
 
-        if (recipients.length > 0 && process.env.N8N_WEBHOOK_URL) {
+        let webhookUrl = process.env.N8N_WEBHOOK_URL || '';
+        if (!webhookUrl) {
+          try {
+            const { rows: cfgRows } = await sql`SELECT value FROM app_config WHERE key = 'webhook_url'`;
+            webhookUrl = cfgRows[0]?.value || '';
+          } catch { /* table may not exist yet */ }
+        }
+        if (recipients.length > 0 && webhookUrl) {
           const { rows: contactRows } = await sql`SELECT * FROM contacts`;
-          fetch(process.env.N8N_WEBHOOK_URL, {
+          fetch(webhookUrl, {
             method:  'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
