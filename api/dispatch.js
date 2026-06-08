@@ -129,9 +129,8 @@ async function loadState(){
     ST.incidents   = (incidents  ||[]).map(hydrateIncident);
     ST.shifts      = (shifts     ||[]).map(hydrateShift);
     ST.dispatchers = dispatchers ||[];
-    ST.rules       = settings.rules       || [];
-    ST.contacts    = settings.contacts    || [];
-    ST.webhookUrl  = settings.webhookUrl  || '';
+    ST.rules       = settings.rules    ||[];
+    ST.contacts    = settings.contacts ||[];
     ST.accounts    = accounts          ||[];
     ST.dispatcher  = sessionStorage.getItem(SESSION_KEY)||null;
   }catch(e){
@@ -739,7 +738,7 @@ function renderLog(){
             <span class="log-cat">${esc(e.category)}</span>
             <span class="pri-pill ${e.priority}"><span class="dot"></span>${PRIORITIES.find(p=>p.key===e.priority).label}</span>
             ${e.incident_id?`<span class="log-inc-link" onclick="jumpToIncident(${e.incident_id})">${fmtIncId(e.incident_id)}</span>`:''}
-            ${e.is_incident?`<span class="b b-system" style="background:var(--b50);color:var(--b500);">Open Incident</span>`:''}
+            ${e.is_incident && e.incident_id?`<span class="b b-system" style="background:var(--b50);color:var(--b500);cursor:pointer;" onclick="jumpToIncident(${e.incident_id})">Open Incident</span>`:''}
           </div>
           ${(e.fields?.site || e.fields?.unit || e.fields?.callback)?`
             <div class="log-meta">
@@ -929,7 +928,6 @@ function openSettings(){
   renderContactsList();
   renderAccountsList();
   renderRosterList();
-  document.getElementById('s-webhook').value = ST.webhookUrl || '';
   document.getElementById('m-settings').classList.remove('hidden');
 }
 function showSTab(k){
@@ -1136,11 +1134,9 @@ async function removeDispatcher(d){
 }
 async function saveSettings(){
   try{
-    const webhookUrl = (document.getElementById('s-webhook').value||'').trim();
-    const result = await apiPost('/api/settings',{rules:ST.rules, contacts:ST.contacts, webhookUrl});
-    ST.rules      = result.rules;
-    ST.contacts   = result.contacts;
-    ST.webhookUrl = result.webhookUrl || webhookUrl;
+    const result = await apiPost('/api/settings',{rules:ST.rules, contacts:ST.contacts});
+    ST.rules    = result.rules;
+    ST.contacts = result.contacts;
     closeModal('m-settings');
     toast('Settings saved','ok');
   }catch(e){
@@ -1626,7 +1622,23 @@ async function bootstrap(){
   ST.fm.callerType = CALLER_TYPES[ST.template][0].key;
 
   // Auto-tick all elapsed times every 30s
-  setInterval(()=>{ renderBoard(); renderStats(); renderQueue(); }, 30000);
+  setInterval(()=>{
+    // Preserve any in-progress update form text before the DOM is rebuilt
+    let savedText = null, savedStatus = null;
+    if(ST.addingUpdateTo !== null){
+      const txtEl = document.getElementById('upd-text-'+ST.addingUpdateTo);
+      const stEl  = document.getElementById('upd-status-'+ST.addingUpdateTo);
+      savedText   = txtEl?.value ?? null;
+      savedStatus = stEl?.value  ?? null;
+    }
+    renderBoard(); renderStats(); renderQueue();
+    if(ST.addingUpdateTo !== null && savedText !== null){
+      const txtEl = document.getElementById('upd-text-'+ST.addingUpdateTo);
+      const stEl  = document.getElementById('upd-status-'+ST.addingUpdateTo);
+      if(txtEl) txtEl.value = savedText;
+      if(stEl && savedStatus !== null) stEl.value = savedStatus;
+    }
+  }, 30000);
 
   if(!ST.dispatcher){
     showLogin();
