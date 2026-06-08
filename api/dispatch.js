@@ -1221,11 +1221,17 @@ function refreshIcons(){
 }
 
 function jumpToIncident(id){
+  const inc = ST.incidents.find(i=>i.id===id);
+  if(!inc){
+    toast(`${fmtIncId(id)} is resolved or not on the active board`, 'info');
+    return;
+  }
   ST.expanded.add(id);
   renderBoard();
   setTimeout(()=>{
     const el = document.querySelector(`[data-inc-id="${id}"]`);
     if(el) el.scrollIntoView({behavior:'smooth', block:'center'});
+    else toast(`${fmtIncId(id)} not found on board`, 'warn');
   }, 60);
 }
 
