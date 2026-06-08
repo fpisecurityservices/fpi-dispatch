@@ -738,7 +738,7 @@ function renderLog(){
             <span class="log-cat">${esc(e.category)}</span>
             <span class="pri-pill ${e.priority}"><span class="dot"></span>${PRIORITIES.find(p=>p.key===e.priority).label}</span>
             ${e.incident_id?`<span class="log-inc-link" onclick="jumpToIncident(${e.incident_id})">${fmtIncId(e.incident_id)}</span>`:''}
-            ${e.is_incident?`<span class="b b-system" style="background:var(--b50);color:var(--b500);">Open Incident</span>`:''}
+            ${e.is_incident && e.incident_id?`<span class="b b-system" style="background:var(--b50);color:var(--b500);cursor:pointer;" onclick="jumpToIncident(${e.incident_id})">Open Incident</span>`:''}
           </div>
           ${(e.fields?.site || e.fields?.unit || e.fields?.callback)?`
             <div class="log-meta">
@@ -1220,13 +1220,60 @@ function refreshIcons(){
   if(window.lucide) lucide.createIcons();
 }
 
-function jumpToIncident(id){
-  ST.expanded.add(id);
-  renderBoard();
-  setTimeout(()=>{
-    const el = document.querySelector(`[data-inc-id="${id}"]`);
-    if(el) el.scrollIntoView({behavior:'smooth', block:'center'});
-  }, 60);
+async function jumpToIncident(id){
+  const inc = ST.incidents.find(i=>i.id===id);
+  if(inc){
+    ST.expanded.add(id);
+    renderBoard();
+    setTimeout(()=>{
+      const el = document.querySelector(`[data-inc-id="${id}"]`);
+      if(el) el.scrollIntoView({behavior:'smooth', block:'center'});
+    }, 60);
+    return;
+  }
+  // Incident not on active board — fetch it (may be resolved) and show in modal
+  try{
+    const data = await fetch(`/api/incidents/${id}`).then(r=>{ if(!r.ok) throw new Error(r.statusText); return r.json(); });
+    hydrateIncident(data);
+    showIncidentModal(data);
+  }catch(e){
+    toast(`Could not load ${fmtIncId(id)}`,'danger',e.message);
+  }
+}
+
+function showIncidentModal(inc){
+  const statusLabel = STATUS[inc.status]?.label || inc.status;
+  const resolvedStr = inc.resolvedAt ? ' · Resolved '+fmtShortDateTime(inc.resolvedAt) : '';
+  document.getElementById('m-inc-title').textContent = fmtIncId(inc.id)+' — '+inc.title;
+  document.getElementById('m-inc-meta').textContent =
+    inc.category+' · '+PRIORITIES.find(p=>p.key===inc.priority)?.label+' priority · '+statusLabel+resolvedStr;
+
+  const thread = inc.thread.slice().reverse().map(t=>{
+    const kindClass = {create:'ev-create',status:'ev-status',update:'ev-update',resolve:'ev-resolve',callback:'ev-callback',handoff:'ev-handoff'}[t.kind]||'ev-update';
+    return `<div class="tl ${kindClass}">
+      <div class="tl-head">
+        <span class="tl-time">${fmtFullTime(t.ts)}</span>
+        <span class="tl-who">${esc(t.who||'')}</span>
+        ${t.action?`<span class="tl-action">${esc(t.action)}</span>`:''}
+      </div>
+      ${t.body?`<div class="tl-body">${esc(t.body)}</div>`:''}
+    </div>`;
+  }).join('');
+
+  const meta = [
+    inc.site    ? `<span><i data-lucide="map-pin" class="ic"></i>${esc(inc.site)}</span>` : '',
+    inc.unit    ? `<span><i data-lucide="radio" class="ic"></i>${esc(inc.unit)}</span>` : '',
+    inc.callback? `<span><i data-lucide="phone" class="ic"></i>${esc(inc.callback)}</span>` : '',
+    inc.callerName?`<span><i data-lucide="user" class="ic"></i>${esc(inc.callerName)}</span>` : '',
+    inc.guardName ?`<span><i data-lucide="shield" class="ic"></i>${esc(inc.guardName)}</span>` : '',
+  ].filter(Boolean).join('');
+
+  document.getElementById('m-inc-body').innerHTML = `
+    ${meta?`<div class="inc-line2" style="margin-bottom:14px;">${meta}</div>`:''}
+    <div class="inc-thread">${thread}</div>
+  `;
+  document.getElementById('m-incident').classList.remove('hidden');
+  refreshIcons();
 }
 
 /* -------- QUICK ACTIONS BAR ---------- */
@@ -1622,7 +1669,23 @@ async function bootstrap(){
   ST.fm.callerType = CALLER_TYPES[ST.template][0].key;
 
   // Auto-tick all elapsed times every 30s
-  setInterval(()=>{ renderBoard(); renderStats(); renderQueue(); }, 30000);
+  setInterval(()=>{
+    // Preserve any in-progress update form text before the DOM is rebuilt
+    let savedText = null, savedStatus = null;
+    if(ST.addingUpdateTo !== null){
+      const txtEl = document.getElementById('upd-text-'+ST.addingUpdateTo);
+      const stEl  = document.getElementById('upd-status-'+ST.addingUpdateTo);
+      savedText   = txtEl?.value ?? null;
+      savedStatus = stEl?.value  ?? null;
+    }
+    renderBoard(); renderStats(); renderQueue();
+    if(ST.addingUpdateTo !== null && savedText !== null){
+      const txtEl = document.getElementById('upd-text-'+ST.addingUpdateTo);
+      const stEl  = document.getElementById('upd-status-'+ST.addingUpdateTo);
+      if(txtEl) txtEl.value = savedText;
+      if(stEl && savedStatus !== null) stEl.value = savedStatus;
+    }
+  }, 30000);
 
   if(!ST.dispatcher){
     showLogin();
@@ -1644,7 +1707,7 @@ async function bootstrap(){
   });
 
   // Click scrim to close
-  ['m-handoff','m-settings'].forEach(id=>{
+  ['m-handoff','m-settings','m-incident'].forEach(id=>{
     document.getElementById(id).addEventListener('click',function(e){
       if(e.target===this) closeModal(id);
     });

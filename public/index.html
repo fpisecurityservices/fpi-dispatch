@@ -1326,6 +1326,22 @@ textarea.inp{resize:none;min-height:78px;line-height:1.45;}
   </div>
 </div>
 
+<div class="scrim hidden" id="m-incident">
+  <div class="modal wide">
+    <div class="modal-hd">
+      <div>
+        <div class="modal-title" id="m-inc-title">Incident</div>
+        <div style="font-size:12px;color:var(--n500);margin-top:2px;" id="m-inc-meta"></div>
+      </div>
+      <button class="modal-x" onclick="closeModal('m-incident')"><i data-lucide="x"></i></button>
+    </div>
+    <div class="modal-body" id="m-inc-body"></div>
+    <div class="modal-ft">
+      <button class="btn" onclick="closeModal('m-incident')">Close</button>
+    </div>
+  </div>
+</div>
+
 <script src="dispatch.js"></script>
 </body>
 </html>
