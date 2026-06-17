@@ -21,7 +21,7 @@ const QUICK_ACTIONS = [
 const CATEGORIES = {
   phone:  ['Incident Report','Client Inquiry','Complaint','Suspicious Person','Trespassing','Disturbance','Medical','Vehicle / Accident','Gate / Access','Alarm','Welfare Check','Disciplinary Action','Callout','Other'],
   guard: ['Patrol Check-in','Post Check','No Call / No Show','Late to Post','Post Abandoned','Incident Report','Suspicious Person','Disturbance','Trespassing','Medical','Equipment Issue','Other'],
-  system:['Shift Note','BOL','Scheduling','Maintenance','Client Brief','Other']
+  system:['Shift Note','BOL','Scheduling','Maintenance','Client Brief','Disciplinary Action','Other']
 };
 
 const PRIORITIES = [
