@@ -5,21 +5,21 @@
 
 /* -------- TEMPLATES (capture modes) -------- */
 const TEMPLATES = [
-  {key:'phone',  label:'Phone Call',    icon:'phone',         placeholder:'Caller said…',                            track:false, def:{callerType:'public'}},
-  {key:'guard',  label:'Guard / Field', icon:'radio',         placeholder:'Officer / post update…',                  track:false, def:{callerType:'guard'}},
-  {key:'system', label:'System / Note', icon:'clipboard-list',placeholder:'Internal note, observation, BOL, etc.',   track:false, def:{callerType:'system'}}
+  {key:'phone',  label:'Phone Call',     icon:'phone',         placeholder:'Caller said…',                            track:false, def:{callerType:'public'}},
+  {key:'system', label:'Dispatch Notes', icon:'clipboard-list',placeholder:'Internal note, observation, BOL, etc.',   track:false, def:{callerType:'system'}}
 ];
 
 const QUICK_ACTIONS = [
-  {key:'checkin',  cat:'Patrol Check-in',     pri:'low',      tpl:'guard', track:false, label:'Check-in'},
-  {key:'ncns',     cat:'No Call / No Show',   pri:'high',     tpl:'guard', track:true,  label:'NCNS'},
-  {key:'late',     cat:'Late to Post',        pri:'medium',   tpl:'guard', track:true,  label:'Late to Post'},
-  {key:'abandon',  cat:'Post Abandoned',      pri:'critical', tpl:'guard', track:true,  label:'Post Abandoned'},
+  {key:'checkin',  cat:'Patrol Check-in',     pri:'low',      tpl:'phone', track:false, label:'Check-in'},
+  {key:'callout',  cat:'Callout',             pri:'high',     tpl:'phone', track:true,  label:'Callout'},
+  {key:'ncns',     cat:'No Call / No Show',   pri:'high',     tpl:'phone', track:true,  label:'NCNS'},
+  {key:'late',     cat:'Late to Post',        pri:'medium',   tpl:'phone', track:true,  label:'Late to Post'},
+  {key:'abandon',  cat:'Post Abandoned',      pri:'critical', tpl:'phone', track:true,  label:'Post Abandoned'},
   {key:'sched',    cat:'Scheduling',          pri:'medium',   tpl:'system',track:false, label:'Scheduling'}
 ];
 
 const CATEGORIES = {
-  phone:  ['Incident Report','Client Inquiry','Complaint','Suspicious Person','Trespassing','Disturbance','Medical','Vehicle / Accident','Gate / Access','Alarm','Welfare Check','Other'],
+  phone:  ['Incident Report','Client Inquiry','Complaint','Suspicious Person','Trespassing','Disturbance','Medical','Vehicle / Accident','Gate / Access','Alarm','Welfare Check','Disciplinary Action','Callout','Other'],
   guard: ['Patrol Check-in','Post Check','No Call / No Show','Late to Post','Post Abandoned','Incident Report','Suspicious Person','Disturbance','Trespassing','Medical','Equipment Issue','Other'],
   system:['Shift Note','BOL','Scheduling','Maintenance','Client Brief','Other']
 };
@@ -660,7 +660,7 @@ function renderThread(inc, isAdding){
 
 /* -------- RENDER: LOG ---------- */
 function renderLogFilters(){
-  const tabs = [['all','All'],['phone','Phone Calls'],['guard','Guard'],['system','System']];
+  const tabs = [['all','All'],['phone','Phone Calls'],['system','Dispatch Notes']];
   document.getElementById('log-tabs').innerHTML = tabs.map(([k,l])=>
     `<button class="tab ${ST.logFilter===k?'act':''}" onclick="setLogFilter('${k}')">${l}</button>`
   ).join('');
@@ -683,7 +683,6 @@ function renderLog(){
     if(e.ts < cutoff) return;
     if(ST.logFilter!=='all'){
       if(ST.logFilter==='phone' && e.template!=='phone') return;
-      if(ST.logFilter==='guard' && e.template!=='guard') return;
       if(ST.logFilter==='system' && e.template!=='system') return;
     }
     if(search){
@@ -1279,6 +1278,7 @@ function showIncidentModal(inc){
 /* -------- QUICK ACTIONS BAR ---------- */
 const QA_CONFIG = [
   {key:'checkin', label:'Check-in', icon:'radio',          cls:'qa-checkin'},
+  {key:'callout', label:'Callout',  icon:'phone-outgoing', cls:'qa-callout'},
   {key:'ncns',    label:'NCNS',     icon:'user-x',         cls:'qa-ncns'},
   {key:'late',    label:'Late',     icon:'clock',          cls:'qa-late'},
   {key:'abandon', label:'Abandon',  icon:'alert-triangle', cls:'qa-abandon'},
