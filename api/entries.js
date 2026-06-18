@@ -146,7 +146,7 @@ export default async function handler(req, res) {
 
       await client.query('COMMIT');
 
-      // 5. Compute routing and fire n8n (fire-and-forget)
+      // 5. Compute routing and fire n8n
       let recipients = [];
       try {
         const { rows: ruleRows } = await sql`SELECT * FROM routing_rules`;
@@ -166,7 +166,7 @@ export default async function handler(req, res) {
         }
         if (webhookUrl) {
           const { rows: contactRows } = await sql`SELECT * FROM contacts`;
-          fetch(webhookUrl, {
+          await fetch(webhookUrl, {
             method:  'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -176,7 +176,7 @@ export default async function handler(req, res) {
               contacts:   contactRows,
               timestamp:  new Date().toISOString(),
             }),
-          }).catch(e => console.error('n8n webhook error:', e.message));
+          });
         }
       } catch (e) {
         console.error('Routing/webhook error (non-fatal):', e.message);
