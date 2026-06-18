@@ -244,15 +244,15 @@ function renderDynFields(){
   if(t==='phone'){
     html = accDrop + `
       <div class="fld">
+        <div class="fld-label">Site / Property</div>
+        <input class="inp" id="f-site" placeholder="Property or location\u2026" value="${esc(ST.fm.fields.site||'')}" oninput="updField('site',this.value)">
+      </div>
+      <div class="fld">
         <div class="fld-label">Caller Info</div>
         <input class="inp" id="f-callerName" placeholder="Caller name\u2026" value="${esc(ST.fm.fields.callerName||'')}" oninput="updField('callerName',this.value)">
         <div class="fld-row" style="margin-top:6px;">
           <input class="inp inp-mono" id="f-callback" placeholder="Callback #" value="${esc(ST.fm.fields.callback||'')}" oninput="updField('callback',this.value)">
         </div>
-      </div>
-      <div class="fld">
-        <div class="fld-label">Site / Property</div>
-        <input class="inp" id="f-site" placeholder="Property or location\u2026" value="${esc(ST.fm.fields.site||'')}" oninput="updField('site',this.value)">
       </div>
     `;
   } else if(t==='guard'){
