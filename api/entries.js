@@ -164,7 +164,7 @@ export default async function handler(req, res) {
             webhookUrl = cfgRows[0]?.value || '';
           } catch { /* table may not exist yet */ }
         }
-        if (recipients.length > 0 && webhookUrl) {
+        if (webhookUrl) {
           const { rows: contactRows } = await sql`SELECT * FROM contacts`;
           fetch(webhookUrl, {
             method:  'POST',
