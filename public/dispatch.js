@@ -985,7 +985,7 @@ function renderRulesList(){
 
 const RULE_VALUE_OPTIONS = {
   priority: ['critical','high','medium','low'],
-  category: ['No Call / No Show','Post Abandoned','Incident Report','Alarm','Client Inquiry','Complaint','Vehicle / Accident','Scheduling','Equipment Issue','HR Issue','eHub Issues','Time Off Request','Disciplinary Action','Uniform Return','Additional Service Request','Activity Audit'],
+  category: ['No Call / No Show','Post Abandoned','Late to Post','Patrol Check-in','Post Check','Incident Report','Alarm','Client Inquiry','Complaint','Vehicle / Accident','Scheduling','Maintenance','Equipment Issue','HR Issue','eHub Issues','Time Off Request','Disciplinary Action','Uniform Return','Additional Service Request','Activity Audit'],
   callerType:['public','client','guard','supervisor','system']
 };
 function renderNewRuleValues(){
