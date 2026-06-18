@@ -19,7 +19,7 @@ const QUICK_ACTIONS = [
 ];
 
 const CATEGORIES = {
-  phone:  ['Incident Report','Client Inquiry','Complaint','Vehicle / Accident','Alarm','HR Issue','eHub Issues','Time Off Request','Disciplinary Action','Other'],
+  phone:  ['Incident Report','Client Inquiry','Complaint','Vehicle / Accident','Alarm','HR Issue','eHub Issues','Time Off Request','Disciplinary Action','Equipment Issue','Take a Message','Other'],
   guard:  ['Patrol Check-in','Post Check','No Call / No Show','Late to Post','Post Abandoned','Incident Report','Equipment Issue','Other'],
   system: ['Scheduling','Maintenance','Uniform Return','Alarm','Additional Service Request','Activity Audit','Other'],
 };
@@ -242,11 +242,20 @@ function renderDynFields(){
   const accDrop = renderAccountDropdown();
   let html = '';
   if(t==='phone'){
+    const notifyDrop = ST.fm.category === 'Take a Message' ? `
+      <div class="fld">
+        <div class="fld-label">Notify</div>
+        <select class="inp" id="f-notify" onchange="updField('notifyTarget',this.value)">
+          <option value="">\u2014 Select recipient \u2014</option>
+          ${ST.contacts.map(c=>`<option value="${esc(c.name)}" ${ST.fm.fields.notifyTarget===c.name?'selected':''}>${esc(c.name)}${c.role?' \u00b7 '+esc(c.role):''}</option>`).join('')}
+        </select>
+      </div>` : '';
     html = accDrop + `
       <div class="fld">
         <div class="fld-label">Site / Property</div>
         <input class="inp" id="f-site" placeholder="Property or location\u2026" value="${esc(ST.fm.fields.site||'')}" oninput="updField('site',this.value)">
       </div>
+      ${notifyDrop}
       <div class="fld">
         <div class="fld-label">Caller Info</div>
         <input class="inp" id="f-callerName" placeholder="Caller name\u2026" value="${esc(ST.fm.fields.callerName||'')}" oninput="updField('callerName',this.value)">
@@ -985,7 +994,7 @@ function renderRulesList(){
 
 const RULE_VALUE_OPTIONS = {
   priority: ['critical','high','medium','low'],
-  category: ['No Call / No Show','Post Abandoned','Late to Post','Patrol Check-in','Post Check','Incident Report','Alarm','Client Inquiry','Complaint','Vehicle / Accident','Scheduling','Maintenance','Equipment Issue','HR Issue','eHub Issues','Time Off Request','Disciplinary Action','Uniform Return','Additional Service Request','Activity Audit'],
+  category: ['No Call / No Show','Post Abandoned','Late to Post','Patrol Check-in','Post Check','Incident Report','Alarm','Client Inquiry','Complaint','Vehicle / Accident','Scheduling','Maintenance','Equipment Issue','HR Issue','eHub Issues','Time Off Request','Disciplinary Action','Uniform Return','Additional Service Request','Activity Audit','Take a Message'],
   callerType:['public','client','guard','supervisor','system']
 };
 function renderNewRuleValues(){
