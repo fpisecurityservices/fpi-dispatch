@@ -190,6 +190,12 @@ function renderTemplateTabs(){
 }
 
 function renderCallerRow(){
+  const callerFld = document.getElementById('caller-row').closest('.fld');
+  if(ST.template === 'system'){
+    if(callerFld) callerFld.style.display = 'none';
+    return;
+  }
+  if(callerFld) callerFld.style.display = '';
   const opts = CALLER_TYPES[ST.template] || CALLER_TYPES.phone;
   document.getElementById('caller-row').innerHTML = opts.map(o=>`
     <button type="button" class="caller-pill ${ST.fm.callerType===o.key?'sel':''}" onclick="setCallerType('${o.key}')">
@@ -327,7 +333,7 @@ function renderTrackRow(){
 /* -------- FORM ACTIONS -------- */
 function setTemplate(k){
   ST.template = k;
-  ST.fm.callerType = (CALLER_TYPES[k][0]||{}).key;
+  ST.fm.callerType = k === 'system' ? 'system' : (CALLER_TYPES[k][0]||{}).key;
   ST.fm.category = null;
   ST.fm.fields = {};
   ST.fm.track = false;
