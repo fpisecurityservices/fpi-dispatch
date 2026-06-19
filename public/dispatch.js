@@ -395,6 +395,9 @@ async function submitEntry(){
   if(!ST.dispatcher){ toast('No dispatcher on duty','warn'); return; }
   if(!ST.fm.callerType){ toast('Pick a caller type','info'); return; }
   if(!ST.fm.category){ toast('Pick a category','info'); return; }
+  if(ST.fm.category === 'Take a Message' && !ST.fm.fields.notifyTarget){
+    toast('Select who to notify','warn'); return;
+  }
   ST.fm.notes = document.getElementById('notes').value.trim();
   if(ST.template==='phone' && !ST.fm.fields.callerName){
     toast('Caller name helps — but logging anyway','info');
