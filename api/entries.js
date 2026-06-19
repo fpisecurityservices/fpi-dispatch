@@ -166,15 +166,31 @@ export default async function handler(req, res) {
         }
         if (webhookUrl) {
           const { rows: contactRows } = await sql`SELECT * FROM contacts`;
+
+          // For "Take a Message", resolve the notify target to an email directly
+          let notifyEmail = null;
+          const notifyTarget = payload.fields?.notifyTarget;
+          if (notifyTarget) {
+            const match = contactRows.find(c => c.name === notifyTarget);
+            notifyEmail = match?.email || null;
+          }
+
+          // Resolve routing recipients to full contact objects with emails
+          const recipientContacts = recipients
+            .map(name => contactRows.find(c => c.name === name))
+            .filter(Boolean);
+
           await fetch(webhookUrl, {
             method:  'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-              entry:      toEntry(entRow),
-              incident:   incidentRow ? toIncident(incidentRow, threadRows) : null,
+              entry:             toEntry(entRow),
+              incident:          incidentRow ? toIncident(incidentRow, threadRows) : null,
               recipients,
-              contacts:   contactRows,
-              timestamp:  new Date().toISOString(),
+              recipientContacts,
+              notifyEmail,
+              contacts:          contactRows,
+              timestamp:         new Date().toISOString(),
             }),
           });
         }
