@@ -19,7 +19,7 @@ const QUICK_ACTIONS = [
 ];
 
 const CATEGORIES = {
-  phone:  ['Incident Report','Client Inquiry','Complaint','Vehicle / Accident','Alarm','HR Issue','eHub Issues','Time Off Request','Disciplinary Action','Equipment Issue','Take a Message','Other'],
+  phone:  ['Incident Report','Client Inquiry','Complaint','Vehicle / Accident','Alarm','HR Issue','eHub Issues','Time Off Request','Disciplinary Action','Equipment Issue','Take a Message','Callout','Other'],
   guard:  ['Patrol Check-in','Post Check','No Call / No Show','Late to Post','Post Abandoned','Incident Report','Equipment Issue','Other'],
   system: ['Scheduling','Maintenance','Uniform Return','Alarm','Additional Service Request','Activity Audit','Other'],
 };
@@ -994,7 +994,7 @@ function renderRulesList(){
 
 const RULE_VALUE_OPTIONS = {
   priority: ['critical','high','medium','low'],
-  category: ['No Call / No Show','Post Abandoned','Late to Post','Patrol Check-in','Post Check','Incident Report','Alarm','Client Inquiry','Complaint','Vehicle / Accident','Scheduling','Maintenance','Equipment Issue','HR Issue','eHub Issues','Time Off Request','Disciplinary Action','Uniform Return','Additional Service Request','Activity Audit','Take a Message'],
+  category: ['No Call / No Show','Post Abandoned','Late to Post','Patrol Check-in','Post Check','Incident Report','Alarm','Client Inquiry','Complaint','Vehicle / Accident','Scheduling','Maintenance','Equipment Issue','HR Issue','eHub Issues','Time Off Request','Disciplinary Action','Uniform Return','Additional Service Request','Activity Audit','Take a Message','Callout'],
   callerType:['public','client','guard','supervisor','system']
 };
 function renderNewRuleValues(){
@@ -1301,12 +1301,15 @@ const QA_CONFIG = [
 ];
 function renderQABar(){
   const el = document.getElementById('qa-bar'); if(!el) return;
-  el.innerHTML = QA_CONFIG.map(q=>`
-    <button type="button" class="qa-btn ${q.cls}" onclick="applyQuick('${q.key}')" title="${QUICK_ACTIONS.find(a=>a.key===q.key)?.cat||q.label}">
+  el.innerHTML = QA_CONFIG.map(q=>{
+    const action = QUICK_ACTIONS.find(a=>a.key===q.key);
+    const active = action && ST.fm.category === action.cat && ST.template === action.tpl;
+    return `
+    <button type="button" class="qa-btn ${q.cls}${active?' qa-active':''}" onclick="applyQuick('${q.key}')" title="${action?.cat||q.label}">
       <i data-lucide="${q.icon}" class="ic"></i>
       <span>${q.label}</span>
-    </button>
-  `).join('');
+    </button>`;
+  }).join('');
   refreshIcons();
 }
 
