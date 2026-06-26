@@ -13,14 +13,16 @@ export default async function handler(req, res) {
   // Incidents are created server-side via POST /api/entries — no POST here.
   const { rows: incRows } = await sql`
     SELECT i.*,
+           e.account_id AS account_id,
            COALESCE(
              json_agg(t ORDER BY t.ts ASC) FILTER (WHERE t.id IS NOT NULL),
              '[]'::json
            ) AS thread_json
     FROM incidents i
+    LEFT JOIN entries e ON e.id = i.entry_id
     LEFT JOIN incident_thread t ON t.incident_id = i.id
     WHERE i.status != 'resolved'
-    GROUP BY i.id
+    GROUP BY i.id, e.account_id
     ORDER BY
       CASE i.priority
         WHEN 'critical' THEN 1
