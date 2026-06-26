@@ -595,13 +595,16 @@ function renderIncidentCard(inc){
   const isAdding = ST.addingUpdateTo === inc.id;
   const overdueCritical = elapsedMin > 10 && inc.status !== 'resolved';
   const needsActionBadge = inc.status === 'new' && elapsedMin > 2;
+  const accountName = inc.account
+    || (inc.account_id ? ST.accounts.find(a=>a.id===inc.account_id)?.name : null)
+    || '';
 
   return `<div class="inc pri-${inc.priority}${overdueCritical?' inc-overdue-alert':''}" data-inc-id="${inc.id}">
     <div class="inc-top" onclick="toggleExpand(${inc.id})">
       <div class="inc-id">${fmtIncId(inc.id)}</div>
       <div class="inc-main">
         <div class="inc-line1">
-          <span class="inc-title">${esc(inc.title)}</span>
+          <span class="inc-title">${esc(accountName || inc.title)}</span>
           <span class="pri-pill ${inc.priority}"><span class="dot"></span>${PRIORITIES.find(p=>p.key===inc.priority).label}</span>
           <span class="st ${STATUS[inc.status].color}"><span class="dot"></span>${STATUS[inc.status].label}</span>
           ${needsActionBadge?`<span class="needs-action-badge"><i data-lucide="bell-ring" class="ic" style="width:10px;height:10px;"></i> Needs Action</span>`:''}
@@ -610,7 +613,6 @@ function renderIncidentCard(inc){
           <span class="inc-meta-item"><i data-lucide="${ctIcon}"></i>${esc(inc.category)}</span>
           ${inc.guardName?`<span class="sep">·</span><span class="inc-meta-item"><i data-lucide="shield"></i><strong style="color:var(--n800);">${esc(inc.guardName)}</strong></span>`:''}
           ${inc.callerName?`<span class="sep">·</span><span class="inc-meta-item"><i data-lucide="user"></i><strong style="color:var(--n800);">${esc(inc.callerName)}</strong></span>`:''}
-          ${(inc.account||(inc.account_id?ST.accounts.find(a=>a.id===inc.account_id)?.name:null))?`<span class="sep">·</span><span class="inc-meta-item"><i data-lucide="briefcase"></i>${esc(inc.account||(ST.accounts.find(a=>a.id===inc.account_id)?.name)||'')}</span>`:''}
           ${inc.site?`<span class="sep">·</span><span class="inc-meta-item"><i data-lucide="map-pin"></i>${esc(inc.site)}</span>`:''}
           ${inc.unit?`<span class="sep">·</span><span class="inc-meta-item"><i data-lucide="radio"></i>${esc(inc.unit)}</span>`:''}
           ${inc.callback?`<span class="sep">·</span><span class="inc-meta-item"><i data-lucide="phone"></i><span style="font-family:var(--f-m);">${esc(inc.callback)}</span></span>`:''}
