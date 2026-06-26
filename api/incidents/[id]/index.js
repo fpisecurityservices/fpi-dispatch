@@ -9,7 +9,7 @@ export default async function handler(req, res) {
   const { id } = req.query;
 
   if (req.method === 'GET') {
-    const { rows } = await sql`SELECT * FROM incidents WHERE id = ${id}`;
+    const { rows } = await sql`SELECT i.*, e.account_id AS account_id FROM incidents i LEFT JOIN entries e ON e.id = i.entry_id WHERE i.id = ${id}`;
     if (!rows.length) return res.status(404).json({ error: 'Not found' });
     const { rows: threadRows } = await sql`
       SELECT * FROM incident_thread WHERE incident_id = ${id} ORDER BY ts ASC
@@ -32,11 +32,15 @@ export default async function handler(req, res) {
     : (resolved_at ?? null);
 
   const { rows } = await sql`
-    UPDATE incidents SET
-      status      = COALESCE(${status     ?? null}, status),
-      resolved_at = COALESCE(${resolvedAt ?? null}, resolved_at)
-    WHERE id = ${id}
-    RETURNING *
+    WITH upd AS (
+      UPDATE incidents SET
+        status      = COALESCE(${status     ?? null}, status),
+        resolved_at = COALESCE(${resolvedAt ?? null}, resolved_at)
+      WHERE id = ${id}
+      RETURNING *
+    )
+    SELECT upd.*, e.account_id AS account_id
+    FROM upd LEFT JOIN entries e ON e.id = upd.entry_id
   `;
 
   if (!rows.length) return res.status(404).json({ error: 'Not found' });
