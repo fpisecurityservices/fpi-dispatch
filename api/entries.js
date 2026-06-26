@@ -142,6 +142,7 @@ export default async function handler(req, res) {
           [iRow.id, entRow.id]
         );
         entRow.incident_id = iRow.id;
+        iRow.account_id    = entRow.account_id ?? null;
       }
 
       await client.query('COMMIT');
