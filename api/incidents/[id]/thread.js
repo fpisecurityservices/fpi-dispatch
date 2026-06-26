@@ -84,7 +84,10 @@ export default async function handler(req, res) {
       [incidentId]
     );
     const { rows: [updatedInc] } = await client.query(
-      'SELECT * FROM incidents WHERE id = $1',
+      `SELECT i.*, e.account_id AS account_id
+         FROM incidents i
+         LEFT JOIN entries e ON e.id = i.entry_id
+        WHERE i.id = $1`,
       [incidentId]
     );
 
