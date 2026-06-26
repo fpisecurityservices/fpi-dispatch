@@ -180,8 +180,10 @@ export default async function handler(req, res) {
             .map(name => contactRows.find(c => c.name === name))
             .filter(Boolean);
 
+          const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+          const isEmail  = v => typeof v === 'string' && EMAIL_RE.test(v);
           const hasRecipientEmail =
-            !!notifyEmail || recipientContacts.some(c => c.email);
+            isEmail(notifyEmail) || recipientContacts.some(c => isEmail(c.email));
           if (!hasRecipientEmail) {
             console.warn(
               `Skipping webhook for entry ${entRow.id}: no resolvable email ` +
