@@ -180,6 +180,14 @@ export default async function handler(req, res) {
             .map(name => contactRows.find(c => c.name === name))
             .filter(Boolean);
 
+          const hasRecipientEmail =
+            !!notifyEmail || recipientContacts.some(c => c.email);
+          if (!hasRecipientEmail) {
+            console.warn(
+              `Skipping webhook for entry ${entRow.id}: no resolvable email ` +
+              `(notifyTarget=${notifyTarget ?? 'none'}, recipients=[${recipients.join('|')}])`
+            );
+          } else {
           await fetch(webhookUrl, {
             method:  'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -193,6 +201,7 @@ export default async function handler(req, res) {
               timestamp:         new Date().toISOString(),
             }),
           });
+          }
         }
       } catch (e) {
         console.error('Routing/webhook error (non-fatal):', e.message);
