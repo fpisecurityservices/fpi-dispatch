@@ -81,6 +81,7 @@ const ST = {
   accounts: [],
   selectedAccount: null,
   logFilter: 'all',
+  catFilter: 'all',
   dateFilter: 7,
   expanded: new Set(),
   addingUpdateTo: null,
@@ -680,7 +681,7 @@ function renderThread(inc, isAdding){
 
 /* -------- RENDER: LOG ---------- */
 function renderLogFilters(){
-  const tabs = [['all','All'],['phone','Phone Calls'],['system','Dispatch Notes']];
+  const tabs = [['all','All'],['phone','Phone Calls'],['system','Dispatch Notes'],['incidents','Incidents']];
   document.getElementById('log-tabs').innerHTML = tabs.map(([k,l])=>
     `<button class="tab ${ST.logFilter===k?'act':''}" onclick="setLogFilter('${k}')">${l}</button>`
   ).join('');
@@ -688,9 +689,38 @@ function renderLogFilters(){
   document.getElementById('log-date-tabs').innerHTML = dts.map(([d,l])=>
     `<button class="tab ${ST.dateFilter===d?'act':''}" onclick="setDateFilter(${d})">${l}</button>`
   ).join('');
+  // Category dropdown — only offer categories that actually appear in the log
+  const sel = document.getElementById('log-cat-sel');
+  if(sel){
+    const cats = Array.from(new Set(ST.entries.map(e=>e.category).filter(Boolean))).sort();
+    if(ST.catFilter!=='all' && !cats.includes(ST.catFilter)) cats.push(ST.catFilter);
+    sel.innerHTML = `<option value="all">All categories</option>` +
+      cats.map(c=>`<option value="${esc(c)}" ${ST.catFilter===c?'selected':''}>${esc(c)}</option>`).join('');
+    sel.classList.toggle('filtered', ST.catFilter!=='all');
+  }
 }
 function setLogFilter(f){ ST.logFilter=f; renderLog(); }
+function setCatFilter(c){ ST.catFilter=c; renderLog(); }
 function setDateFilter(d){ ST.dateFilter=d; renderLog(); }
+function clearLogSearch(){
+  document.getElementById('log-search').value='';
+  renderLog();
+  document.getElementById('log-search').focus();
+}
+function clearLogFilters(){
+  ST.logFilter='all'; ST.catFilter='all';
+  document.getElementById('log-search').value='';
+  renderLog();
+}
+
+// Live status of the incident an entry is linked to (if any). Prefers the
+// in-memory incident (fresh after this session's status changes), falls back
+// to the status the server joined onto the entry.
+function entryIncidentStatus(e){
+  if(!e.incident_id) return null;
+  const inc = ST.incidents.find(i=>i.id===e.incident_id);
+  return inc ? inc.status : (e.incident_status || null);
+}
 
 function renderLog(){
   renderLogFilters();
@@ -704,14 +734,16 @@ function renderLog(){
     if(ST.logFilter!=='all'){
       if(ST.logFilter==='phone' && e.template!=='phone') return;
       if(ST.logFilter==='system' && e.template!=='system') return;
+      if(ST.logFilter==='incidents' && !e.incident_id) return;
     }
+    if(ST.catFilter!=='all' && e.category!==ST.catFilter) return;
     if(search){
       const hay = [e.fields?.guardName,e.fields?.callerName,e.fields?.site,e.fields?.unit,e.notes,e.category,e.dispatcher].filter(Boolean).join(' ').toLowerCase();
       if(!hay.includes(search)) return;
     }
     feed.push({kind:'entry', ts:e.ts, data:e});
   });
-  if(!search && ST.logFilter==='all'){
+  if(!search && ST.logFilter==='all' && ST.catFilter==='all'){
     ST.shifts.forEach(s=>{
       if(s.ts < cutoff) return;
       feed.push({kind:'shift', ts:s.ts, data:s});
@@ -721,8 +753,17 @@ function renderLog(){
 
   document.getElementById('log-count').textContent = feed.filter(f=>f.kind==='entry').length+' entries';
 
+  // Show the search clear button only when there's something to clear
+  const clearBtn = document.getElementById('log-search-clear');
+  if(clearBtn) clearBtn.style.display = search ? '' : 'none';
+
   if(!feed.length){
-    document.getElementById('log-body').innerHTML = `<div class="board-empty" style="margin:20px;"><i data-lucide="inbox"></i><div class="board-empty-title">No entries match</div></div>`;
+    const filtersActive = search || ST.logFilter!=='all' || ST.catFilter!=='all';
+    document.getElementById('log-body').innerHTML = `<div class="board-empty" style="margin:20px;">
+      <i data-lucide="inbox"></i>
+      <div class="board-empty-title">No entries match</div>
+      ${filtersActive?`<button class="btn" style="margin-top:6px;" onclick="clearLogFilters()"><i data-lucide="filter-x" class="ic"></i> Clear filters</button>`:''}
+    </div>`;
     refreshIcons();
     return;
   }
@@ -748,8 +789,12 @@ function renderLog(){
       const ctBadgeMap = {public:'Public',client:'Client',guard:'Guard',supervisor:'Supervisor',system:'System',dispatch:'Dispatch'};
       const ctClass = (e.template==='phone')?'phone':(e.template==='system'?'system':e.callerType);
       const who = e.fields?.guardName || e.fields?.callerName || e.fields?.site || (e.template==='system'?'System':'');
-      html += `<div class="log-item">
-        <div class="log-time">${fmtShortTime(e.ts)}</div>
+      const incSt = entryIncidentStatus(e);
+      const incBadge = !incSt ? '' : (incSt==='resolved'
+        ? `<span class="b b-inc st-resolved" onclick="jumpToIncident(${e.incident_id})" title="This incident has been resolved">&#10003; Resolved</span>`
+        : `<span class="b b-inc ${STATUS[incSt]?.color||'st-new'}" onclick="jumpToIncident(${e.incident_id})" title="Incident status: ${STATUS[incSt]?.label||incSt}">${STATUS[incSt]?.label||incSt}</span>`);
+      html += `<div class="log-item${incSt==='resolved'?' log-resolved':''}">
+        <div class="log-time" title="${esc(fmtShortDateTime(e.ts))}">${fmtShortTime(e.ts)}</div>
         <div class="log-content">
           <div class="log-line1">
             <span class="b b-${ctClass==='phone'?'phone':ctClass}">${e.template==='phone'?'Phone':(ctBadgeMap[e.callerType]||e.callerType)}</span>
@@ -757,7 +802,7 @@ function renderLog(){
             <span class="log-cat">${esc(e.category)}</span>
             <span class="pri-pill ${e.priority}"><span class="dot"></span>${PRIORITIES.find(p=>p.key===e.priority).label}</span>
             ${e.incident_id?`<span class="log-inc-link" onclick="jumpToIncident(${e.incident_id})">${fmtIncId(e.incident_id)}</span>`:''}
-            ${e.is_incident && e.incident_id?`<span class="b b-system" style="background:var(--b50);color:var(--b500);cursor:pointer;" onclick="jumpToIncident(${e.incident_id})">Open Incident</span>`:''}
+            ${incBadge}
           </div>
           ${(e.fields?.site || e.fields?.unit || e.fields?.callback)?`
             <div class="log-meta">
@@ -1241,6 +1286,11 @@ function refreshIcons(){
 
 async function jumpToIncident(id){
   const inc = ST.incidents.find(i=>i.id===id);
+  if(inc && inc.status==='resolved'){
+    // Resolved incidents aren't on the board — show the thread in a modal
+    showIncidentModal(inc);
+    return;
+  }
   if(inc){
     ST.expanded.add(id);
     renderBoard();
@@ -1724,7 +1774,7 @@ async function bootstrap(){
   document.addEventListener('keydown', e=>{
     if((e.ctrlKey||e.metaKey) && e.key==='Enter'){ e.preventDefault(); submitEntry(); }
     if(e.key==='Escape'){
-      ['m-handoff','m-settings'].forEach(id=>closeModal(id));
+      ['m-handoff','m-settings','m-incident'].forEach(id=>closeModal(id));
       ST.addingUpdateTo = null; renderBoard();
     }
   });
