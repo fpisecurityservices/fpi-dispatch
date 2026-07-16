@@ -94,7 +94,7 @@ export default async function handler(req, res) {
     return res.status(200).json({
       event:    toThreadEvent(tRow),
       incident: toIncident(updatedInc, allThreadRows.map(toThreadEvent)),
-      logEntry: toEntry(logEntryRow),
+      logEntry: toEntry({ ...logEntryRow, incident_status: updatedInc.status }),
     });
 
   } catch (e) {
