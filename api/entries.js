@@ -13,33 +13,42 @@ export default async function handler(req, res) {
     const { since, limit = '300', search } = req.query;
     const cap = Math.min(parseInt(limit) || 300, 1000);
 
+    // Join the linked incident's status so the log can mark resolved activity
     let rows;
     if (search) {
       const q = `%${search}%`;
       ({ rows } = await sql`
-        SELECT * FROM entries
+        SELECT e.*, i.status AS incident_status
+        FROM entries e
+        LEFT JOIN incidents i ON i.id = e.incident_id
         WHERE (
-          notes              ILIKE ${q} OR
-          category           ILIKE ${q} OR
-          dispatcher         ILIKE ${q} OR
-          fields->>'callerName' ILIKE ${q} OR
-          fields->>'guardName'  ILIKE ${q} OR
-          fields->>'site'       ILIKE ${q} OR
-          fields->>'unit'       ILIKE ${q}
+          e.notes              ILIKE ${q} OR
+          e.category           ILIKE ${q} OR
+          e.dispatcher         ILIKE ${q} OR
+          e.fields->>'callerName' ILIKE ${q} OR
+          e.fields->>'guardName'  ILIKE ${q} OR
+          e.fields->>'site'       ILIKE ${q} OR
+          e.fields->>'unit'       ILIKE ${q}
         )
-        ORDER BY ts DESC
+        ORDER BY e.ts DESC
         LIMIT ${cap}
       `);
     } else if (since) {
       ({ rows } = await sql`
-        SELECT * FROM entries
-        WHERE ts > ${since}::timestamptz
-        ORDER BY ts DESC
+        SELECT e.*, i.status AS incident_status
+        FROM entries e
+        LEFT JOIN incidents i ON i.id = e.incident_id
+        WHERE e.ts > ${since}::timestamptz
+        ORDER BY e.ts DESC
         LIMIT ${cap}
       `);
     } else {
       ({ rows } = await sql`
-        SELECT * FROM entries ORDER BY ts DESC LIMIT ${cap}
+        SELECT e.*, i.status AS incident_status
+        FROM entries e
+        LEFT JOIN incidents i ON i.id = e.incident_id
+        ORDER BY e.ts DESC
+        LIMIT ${cap}
       `);
     }
 
@@ -141,8 +150,9 @@ export default async function handler(req, res) {
           `UPDATE entries SET incident_id = $1 WHERE id = $2`,
           [iRow.id, entRow.id]
         );
-        entRow.incident_id = iRow.id;
-        iRow.account_id    = entRow.account_id ?? null;
+        entRow.incident_id     = iRow.id;
+        entRow.incident_status = iRow.status;
+        iRow.account_id        = entRow.account_id ?? null;
       }
 
       await client.query('COMMIT');
