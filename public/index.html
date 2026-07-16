@@ -593,6 +593,23 @@ textarea.inp{resize:none;min-height:78px;line-height:1.45;}
     no-repeat 9px center;
 }
 .log-search:focus{outline:none;border-color:var(--b500);box-shadow:0 0 0 3px rgba(0,96,144,.12);}
+.log-search-wrap{position:relative;}
+.log-search-wrap .log-search{padding-right:28px;}
+.log-search-clear{
+  position:absolute;right:5px;top:50%;transform:translateY(-50%);
+  width:20px;height:20px;border-radius:50%;
+  background:transparent;border:none;color:var(--n400);
+  font-size:15px;line-height:1;display:grid;place-items:center;padding:0;
+}
+.log-search-clear:hover{background:var(--n100);color:var(--n900);}
+.log-cat-sel{
+  width:100%;padding:6px 10px;
+  border:1px solid var(--n200);border-radius:7px;
+  font-size:12px;font-weight:500;background:#fff;color:var(--n700);
+  cursor:pointer;
+}
+.log-cat-sel:focus{outline:none;border-color:var(--b500);box-shadow:0 0 0 3px rgba(0,96,144,.12);}
+.log-cat-sel.filtered{border-color:var(--b500);color:var(--b500);font-weight:600;background:var(--b50);}
 
 .log-body{padding:0 0 30px;}
 .log-day{
@@ -651,6 +668,12 @@ textarea.inp{resize:none;min-height:78px;line-height:1.45;}
 .b-client{background:var(--b50);color:var(--b500);}
 .b-phone{background:#F0E8FA;color:#5A3895;}
 .b-system{background:var(--n100);color:var(--n600);}
+/* incident status badge in log — reuses the st-* palette classes */
+.b-inc{border:1px solid;cursor:pointer;}
+.b-inc:hover{filter:brightness(.96);}
+/* entries whose linked incident is resolved read as settled */
+.log-item.log-resolved .log-who,
+.log-item.log-resolved .log-cat{color:var(--n500);}
 
 /* ---------- MODAL ---------- */
 .scrim{
@@ -1172,7 +1195,13 @@ textarea.inp{resize:none;min-height:78px;line-height:1.45;}
       <div class="log-filters">
         <div class="tab-row" id="log-tabs"></div>
         <div class="tab-row" id="log-date-tabs"></div>
-        <input type="text" class="log-search" id="log-search" placeholder="Search name, location, notes…" oninput="renderLog()">
+        <select class="log-cat-sel" id="log-cat-sel" onchange="setCatFilter(this.value)" title="Filter by category">
+          <option value="all">All categories</option>
+        </select>
+        <div class="log-search-wrap">
+          <input type="text" class="log-search" id="log-search" placeholder="Search name, location, notes…" oninput="renderLog()">
+          <button type="button" class="log-search-clear" id="log-search-clear" style="display:none;" onclick="clearLogSearch()" title="Clear search">×</button>
+        </div>
       </div>
       <div class="col-body">
         <div class="log-body" id="log-body"></div>
