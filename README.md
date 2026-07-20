@@ -11,8 +11,10 @@ Vercel + Postgres. No framework. Vanilla JS frontend, Node.js serverless API.
    - `POSTGRES_URL`, `POSTGRES_URL_NON_POOLING`, `POSTGRES_USER`,
      `POSTGRES_HOST`, `POSTGRES_PASSWORD`, `POSTGRES_DATABASE`
    - `N8N_WEBHOOK_URL` — your n8n webhook URL
-4. Run the migration once (Vercel dashboard → Storage → Query):
-   paste contents of `migrations/001_init_v2_schema.sql` and run
+4. Run the migrations once (Vercel dashboard → Storage → Query), in order:
+   paste and run each of `migrations/001_init_v2_schema.sql`,
+   `002_add_accounts.sql`, `003_add_app_config.sql`,
+   `004_add_escalation_protocols.sql`, and `005_add_bols.sql`
 5. Update dispatcher names, contacts, and routing rules in the seeded data
    inside the migration SQL before running, OR edit them in the portal's
    Settings modal after first deploy
