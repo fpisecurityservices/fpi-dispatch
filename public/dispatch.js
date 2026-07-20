@@ -85,7 +85,7 @@ const ST = {
   dateFilter: 7,
   expanded: new Set(),
   addingUpdateTo: null,
-  bols: JSON.parse(localStorage.getItem('fpi_bols')||'[]'),
+  bols: [],
   guards: []
 };
 
@@ -1369,7 +1369,8 @@ function renderQABar(){
 }
 
 /* -------- ESCALATION PROTOCOLS ---------- */
-const PROTOCOLS_KEY = 'fpi_protocols';
+// DEFAULT_PROTOCOLS is now only an offline fallback — the source of truth is
+// the escalation_protocols table, loaded via /api/protocols.
 const DEFAULT_PROTOCOLS = [
   { category:'Medical Emergency', trigger:'critical',
     steps:['Call 911 immediately — do not wait for officer assessment',
@@ -1402,8 +1403,43 @@ const DEFAULT_PROTOCOLS = [
            'If behavior escalates to threat level, authorize officer to call 911',
            'Notify client if activity is on or adjacent to their property'] }
 ];
-let ESCALATION_PROTOCOLS = JSON.parse(localStorage.getItem(PROTOCOLS_KEY)) || DEFAULT_PROTOCOLS.map(p=>({...p, steps:[...p.steps]}));
-function saveProtocols(){ localStorage.setItem(PROTOCOLS_KEY, JSON.stringify(ESCALATION_PROTOCOLS)); }
+// Protocols are shared across the whole team, so they live in the database
+// (via /api/protocols) rather than each browser's localStorage. Anything one
+// dispatcher adds is then visible to everyone.
+let ESCALATION_PROTOCOLS = [];
+
+async function loadProtocols(){
+  try {
+    const r = await fetch('/api/protocols');
+    if(r.ok){
+      ESCALATION_PROTOCOLS = await r.json();
+      return;
+    }
+    throw new Error('HTTP '+r.status);
+  } catch(e){
+    console.error('loadProtocols:', e);
+    // Offline / API failure: fall back to defaults so the panel isn't empty,
+    // but only if we don't already have something loaded.
+    if(!ESCALATION_PROTOCOLS.length){
+      ESCALATION_PROTOCOLS = DEFAULT_PROTOCOLS.map(p=>({...p, steps:[...p.steps]}));
+    }
+  }
+}
+
+async function saveProtocols(){
+  try {
+    const r = await fetch('/api/protocols', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({protocols: ESCALATION_PROTOCOLS})
+    });
+    if(!r.ok) throw new Error('HTTP '+r.status);
+    // Adopt the server's canonical copy (with ids / ordering).
+    ESCALATION_PROTOCOLS = await r.json();
+  } catch(e){
+    console.error('saveProtocols:', e);
+    toast('Could not save protocol — check connection','warn');
+  }
+}
 
 let _editingProtocol = null;
 function startEditProtocol(i){ _editingProtocol=i; renderEscalationList(); }
@@ -1450,23 +1486,44 @@ function saveProtocolEdit(i){
 }
 
 /* -------- BOL / WATCH ORDERS ---------- */
-const BOL_KEY = 'fpi_bols';
-function saveBols(){ localStorage.setItem(BOL_KEY, JSON.stringify(ST.bols)); }
-
-function addBol(){
-  const inp = document.getElementById('bol-input');
-  const text = (inp?.value||'').trim(); if(!text) return;
-  ST.bols.unshift({id:Date.now(), text, ts:new Date().toISOString(), by:ST.dispatcher||'Dispatch'});
-  saveBols();
-  inp.value = '';
-  renderBolList();
-  toast('BOL added','ok','Watch order is live for this shift');
+// Watch orders are shared across the whole team, so they live in the database
+// (via /api/bols) rather than each browser's localStorage.
+async function loadBols(){
+  try {
+    const r = await fetch('/api/bols');
+    if(r.ok) ST.bols = await r.json();
+  } catch(e){ console.error('loadBols:', e); }
 }
 
-function clearBol(id){
-  ST.bols = ST.bols.filter(b=>b.id!==id);
-  saveBols();
-  renderBolList();
+async function addBol(){
+  const inp = document.getElementById('bol-input');
+  const text = (inp?.value||'').trim(); if(!text) return;
+  try {
+    const r = await fetch('/api/bols', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({text, by: ST.dispatcher||'Dispatch'})
+    });
+    if(!r.ok) throw new Error('HTTP '+r.status);
+    ST.bols.unshift(await r.json());
+    inp.value = '';
+    renderBolList();
+    toast('BOL added','ok','Watch order is live for the whole team');
+  } catch(e){
+    console.error('addBol:', e);
+    toast('Could not add watch order — check connection','warn');
+  }
+}
+
+async function clearBol(id){
+  try {
+    const r = await fetch(`/api/bols/${id}`, {method:'DELETE'});
+    if(!r.ok) throw new Error('HTTP '+r.status);
+    ST.bols = ST.bols.filter(b=>b.id!==id);
+    renderBolList();
+  } catch(e){
+    console.error('clearBol:', e);
+    toast('Could not clear watch order — check connection','warn');
+  }
 }
 
 function renderBolList(){
@@ -1551,7 +1608,7 @@ function renderReference(){
     <div>
       <div class="ref-s-head">
         <div class="ref-s-title"><i data-lucide="eye" class="ic"></i> Watch Orders / BOL</div>
-        <span style="font-size:10px;color:var(--n400);">Cleared manually · shift-persistent</span>
+        <span style="font-size:10px;color:var(--n400);">Cleared manually · shared with all dispatchers</span>
       </div>
       <div class="bol-add">
         <input class="inp" id="bol-input" placeholder="Describe subject, vehicle, or situation to watch for…"
@@ -1602,8 +1659,8 @@ function renderReference(){
     </div>
   `;
   refreshIcons();
-  renderBolList();
-  renderEscalationList();
+  loadBols().then(renderBolList);
+  loadProtocols().then(renderEscalationList);
   loadGuards().then(renderGuardsList);
 }
 
@@ -1699,7 +1756,7 @@ function setRightTab(tab){
     refView.style.display='flex';
     if(csvBtn) csvBtn.style.display='none';
     if(!_refRendered){ renderReference(); _refRendered=true; }
-    else { renderBolList(); loadGuards().then(renderGuardsList); }
+    else { loadBols().then(renderBolList); loadProtocols().then(renderEscalationList); loadGuards().then(renderGuardsList); }
   }
 }
 
